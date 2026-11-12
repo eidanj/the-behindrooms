@@ -73,7 +73,7 @@ export const DIFFICULTIES = {
     jumpscareChance: 0, audioMult: 0.7, breathMult: 0.6, ambientMult: 1.6,
     nightCap: 4, dayCap: 1, nightRoomChance: 0.07, dayRoomChance: 1 / 50,
     entitySpeedMult: 0.92, statDrainMult: 0.75,
-    drawerChance: 0.52, loot: { battery: 26, drink: 20, food: 15, key: 10 },
+    drawerChance: 0.44, loot: { battery: 26, drink: 20, food: 15, key: 10 },
     floorItemMult: 1.3, sightMult: 0.85, trapChance: 0.3, saferoomChance: 0.45,
     starsKeptOnDeath: 0.5,
   },
@@ -83,7 +83,7 @@ export const DIFFICULTIES = {
     jumpscareChance: 0, audioMult: 1.0, breathMult: 1.0, ambientMult: 1.0,
     nightCap: 7, dayCap: 2, nightRoomChance: 0.12, dayRoomChance: 1 / 50,
     entitySpeedMult: 1.0, statDrainMult: 1.0,
-    drawerChance: 0.38, loot: { battery: 20, drink: 15, food: 10, key: 8 },
+    drawerChance: 0.30, loot: { battery: 20, drink: 15, food: 10, key: 8 },
     floorItemMult: 1.0, sightMult: 1.0, trapChance: 0.4, saferoomChance: 0.35,
     starsKeptOnDeath: 0,
   },
@@ -93,16 +93,30 @@ export const DIFFICULTIES = {
     jumpscareChance: 0.08, audioMult: 1.15, breathMult: 1.35, ambientMult: 0.8,
     nightCap: 7, dayCap: 2, nightRoomChance: 0.12, dayRoomChance: 1 / 50,
     entitySpeedMult: 1.0, statDrainMult: 1.35,
-    drawerChance: 0.26, loot: { battery: 14, drink: 10, food: 7, key: 6 },
+    drawerChance: 0.21, loot: { battery: 14, drink: 10, food: 7, key: 6 },
     floorItemMult: 0.85, sightMult: 1.1, trapChance: 0.55, saferoomChance: 0.3,
     starsKeptOnDeath: 0,
   },
 };
 
 export const QUALITY = {
-  low:    { label: 'Low',    renderScale: 0.6,  maxDPR: 1,   poolLights: 3, loadRadius: 1, shadows: false, anisotropy: 1, fogDay: 30 },
-  medium: { label: 'Medium', renderScale: 0.85, maxDPR: 1,   poolLights: 5, loadRadius: 2, shadows: false, anisotropy: 4, fogDay: 46 },
-  high:   { label: 'High',   renderScale: 1.0,  maxDPR: 1.5, poolLights: 7, loadRadius: 2, shadows: true,  anisotropy: 8, fogDay: 50 },
+  // poolLights = how many real lights exist at once; lightRange = how far away (m) lights switch on
+  low:    { label: 'Low',    renderScale: 0.6,  maxDPR: 1,   poolLights: 4, lightRange: 24, loadRadius: 1, shadows: false, anisotropy: 1, fogDay: 34, fogNight: 26 },
+  medium: { label: 'Medium', renderScale: 0.85, maxDPR: 1,   poolLights: 6, lightRange: 32, loadRadius: 2, shadows: false, anisotropy: 4, fogDay: 54, fogNight: 32 },
+  high:   { label: 'High',   renderScale: 1.0,  maxDPR: 1.5, poolLights: 8, lightRange: 38, loadRadius: 2, shadows: true,  anisotropy: 8, fogDay: 60, fogNight: 36 },
+};
+
+// Night lighting. Raise darkRoomChance / lower level for an even darker night.
+export const NIGHT_LIGHTS = {
+  darkRoomChance: 0.55,   // share of rooms with NO working light at night
+  extraLightChance: 0.2,  // chance a lit room gets a 2nd light
+  level: 0.24,            // brightness of a working night light (day = 1)
+  rangeMult: 0.75,        // how far a night light's glow reaches vs. daytime
+};
+
+// Testing helpers. Set testTools to false before you release the game.
+export const DEBUG = {
+  testTools: true,   // Test tools in the pause menu + hotkeys N / T / M / G
 };
 
 export const DEFAULT_SETTINGS = {

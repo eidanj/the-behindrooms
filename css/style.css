@@ -163,6 +163,13 @@ button { font-family: inherit; }
 .mbtn .caret { display: inline-block; width: 30px; color: var(--yellow); opacity: 0; transition: opacity 0.1s; }
 .mbtn:hover, .mbtn:focus-visible { opacity: 1; color: var(--yellow); transform: translateX(6px); outline: none; }
 .mbtn:hover .caret, .mbtn:focus-visible .caret { opacity: 1; }
+#test-tools { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--faint); }
+.tt-head { text-align: center; font-size: 16px; letter-spacing: 4px; color: var(--dim); margin-bottom: 8px; }
+.tt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tbtn { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(0,0,0,0.35); color: #b8c6ff; border: 1px solid rgba(184,198,255,0.3); font-size: 20px; padding: 6px 12px; cursor: pointer; white-space: nowrap; transition: all 0.12s; }
+.tbtn:hover, .tbtn:focus-visible { border-color: #b8c6ff; background: rgba(30,36,64,0.6); color: #e0e6ff; outline: none; }
+.tbtn kbd { font-size: 16px; color: var(--dim); }
+#compass-safe { position: absolute; top: 1px; font-size: 21px; transform: translateX(-50%); color: #7ff0ff; filter: drop-shadow(0 0 4px rgba(127,240,255,0.8)); }
 .menu-foot { margin-top: 5vh; font-size: 20px; color: var(--dim); letter-spacing: 2px; }
 .menu-right { display: flex; flex-direction: column; justify-content: flex-start; }
 .vhs-box { font-size: 30px; text-align: right; color: var(--paper); text-shadow: 0 0 6px #000; }

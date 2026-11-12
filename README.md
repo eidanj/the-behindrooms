@@ -46,7 +46,7 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 
 - **Day (10 min):** bright fluorescent lights and calm music. Entities are very rare (1 in 50 rooms) and only follow you slowly.
 - **Dusk:** the lights flicker violently, then the power dies.
-- **Night (6 min):** only 1–3 dim lights work per room, the music turns tense, and entities are common. They're **blind** and hunt by **sound**. Walking can be heard from 5–20 ft away and sprinting from 10–35 ft (each entity hears a little differently). With **line of sight** at night they sprint 5–10% faster than your walk, so sprint away.
+- **Night (6 min):** about half the rooms go completely dark and the rest keep one (rarely 2–3) dim light, the music turns tense, and entities are common. They're **blind** and hunt by **sound**. Walking can be heard from 5–20 ft away and sprinting from 10–35 ft (each entity hears a little differently). With **line of sight** at night they sprint 5–10% faster than your walk, so sprint away.
 - **Escaping:** break line of sight and survive 20 seconds to escape a chase and earn **+1 ★**.
 - **Saferooms:** locked rooms entities can't enter. Keys come from drawers (8%). 15% have a **bed** that lets you sleep through the night. At night the bed may be **trapped**. Listen for breathing and look for a bulge with a limb sticking out. Sleeping in it kills you. **Jump on it 4 times** (within about 7 seconds of the first hit) to squash the monster for **+1 ★**.
 - **Rocks:** throw to make noise and lure entities, or hit one to trip it. **Banana peels:** throw or drop them, and chasing entities that step on one slip and fall.
@@ -63,7 +63,9 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 
 ### Loot
 
-Drawers (Normal): 20% battery · 15% drink · 10% food · 8% saferoom key · 47% empty.
+Filing cabinets appear in about 30% of rooms on Normal (44% Easy, 21% Hard).
+
+Drawer contents (Normal): 20% battery · 15% drink · 10% food · 8% saferoom key · 47% empty.
 
 | Item | Effect |
 |---|---|
@@ -102,8 +104,22 @@ js/models.js        Primitive-built 3D models (cabinets, beds, tents, portal, cr
 js/geo.js           Geometry merger for walls and floors
 js/ui.js            DOM HUD, hotbar, compass, toasts, screen effects
 js/tutorial.js      Interactive tutorial steps
+js/guide.js         Test tool: arrow trail to the nearest saferoom
 js/input.js         Keyboard and mouse
 ```
+
+**Test tools:** press **Esc** to pause, then use the **Test tools** panel, or press the hotkey while playing:
+
+| Key | Tool |
+|---|---|
+| **N** | Become nighttime. Jumps to just before nightfall, so the flicker and power cut still play. |
+| **T** | Become daytime. Skips to morning. |
+| **M** | Spawn a monster 6–16 m away, in view if possible. |
+| **G** | Guide to the nearest saferoom with floor arrows, a beacon over the door and a compass marker. Press again to turn it off. |
+
+Turn them all off for release by setting `DEBUG.testTools = false` in `js/config.js`.
+
+**Night darkness:** `NIGHT_LIGHTS` in `js/config.js` controls how many rooms go fully dark at night and how bright the remaining lights are.
 
 **Tweaking:** almost every gameplay number lives in `js/config.js`, including day/night length, speeds, hearing radii, difficulty presets and graphics quality presets.
 
@@ -112,6 +128,6 @@ js/input.js         Keyboard and mouse
 - The world is streamed in 24 m chunks. Chunks outside the load radius are disposed, and at most one or two are built per frame to avoid hitches.
 - Each chunk's walls, floor and ceiling are merged into a few meshes, and ceiling lights are a single instanced mesh. Whole chunks are culled against the camera frustum.
 - Props (cabinets, beds, rocks) are hidden beyond about 26 m, where fog hides them anyway.
-- Only a small pool of real point lights exists (3–7 depending on quality). It's reassigned every frame to the most important lights near you.
+- Only a small pool of real point lights exists (4–8 depending on quality). It's reassigned every frame to the most important lights within `lightRange` (24–38 m), and lights fade in near the edge of that range.
 - Entities more than about 44 m away skip AI and animation. Their breathing audio only exists within 30 m.
 - If you drop below 40 FPS, set **Settings → Graphics quality** to **Low**.

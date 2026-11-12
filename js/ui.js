@@ -155,10 +155,11 @@ export class UI {
       this.ticks.push({ el: s, b: (b * Math.PI) / 180 });
     }
     this.campEl = $('#compass-camp');
+    this.safeEl = $('#compass-safe');
     this.distEl = $('#compass-dist');
   }
 
-  updateCompass(heading, campBearing, dist, inCamp) {
+  updateCompass(heading, campBearing, dist, inCamp, safe) {
     const W = 340, half = W / 2, span = Math.PI / 2;
     const wrap = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
     for (const t of this.ticks) {
@@ -171,7 +172,16 @@ export class UI {
     const x = Math.max(-1, Math.min(1, r / span));
     this.campEl.style.left = `${half + x * (half - 10)}px`;
     this.campEl.style.opacity = Math.abs(r) > span ? 0.5 : 1;
-    this.distEl.textContent = inCamp ? 'CAMP · SAFE' : `camp ${Math.round(dist)} m`;
+    let txt = inCamp ? 'CAMP · SAFE' : `camp ${Math.round(dist)} m`;
+    if (safe) {
+      const rs = wrap(safe.bearing - heading);
+      const xs = Math.max(-1, Math.min(1, rs / span));
+      this.safeEl.style.display = '';
+      this.safeEl.style.left = `${half + xs * (half - 10)}px`;
+      this.safeEl.style.opacity = Math.abs(rs) > span ? 0.5 : 1;
+      txt += ` · <span style="color:#7ff0ff">saferoom ${Math.round(safe.dist)} m</span>`;
+    } else this.safeEl.style.display = 'none';
+    if (txt !== this._compTxt) { this.distEl.innerHTML = txt; this._compTxt = txt; }
   }
 
   // ── HUD ──

@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import * as THREE from '../lib/three.module.min.js';
-import { DIFFICULTIES, QUALITY, DEFAULT_SETTINGS, CYCLE, STARS_TO_WIN, ENTITY, FLASHLIGHT, PLAYER } from './config.js';
+import { DIFFICULTIES, QUALITY, DEFAULT_SETTINGS, CYCLE, STARS_TO_WIN, ENTITY, FLASHLIGHT, PLAYER, DEBUG } from './config.js';
 import { buildMaterials, setAnisotropy } from './textures.js';
 import { World } from './world.js';
 import { Cycle } from './cycle.js';
@@ -15,6 +15,7 @@ import { Hands } from './hands.js';
 import { UI } from './ui.js';
 import { Input } from './input.js';
 import { Tutorial } from './tutorial.js';
+import { Guide } from './guide.js';
 import { weighted, lerp } from './rng.js';
 
 const SETTINGS_KEY = 'behindrooms.settings.v1';
@@ -83,6 +84,7 @@ class Game {
     this.marker.rotation.x = Math.PI;
     this.marker.visible = false;
     this.scene.add(this.marker);
+    this.guide = new Guide(this);
 
     this.state = 'splash';
     this.world = null; this.player = null; this.entities = null; this.throwables = null; this.cycle = null;
@@ -124,6 +126,7 @@ class Game {
     if (this.pool.length !== q.poolLights) this._setPool(q.poolLights);
     setAnisotropy(this.mats, q.anisotropy);
     if (this.world && this.world.loadRadius !== q.loadRadius) { this.world.loadRadius = q.loadRadius; this.world._dirty = true; }
+    if (this.world) this.world.lightRange = q.lightRange;
     if (recompile) this.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
     this.resize();
   }
@@ -168,6 +171,7 @@ class Game {
     document.querySelectorAll('.diff-card').forEach((c) => c.addEventListener('dblclick', () => this.startGame(c.dataset.diff, false)));
     this.ui.bindSettings(this.settings, (k) => this.applySetting(k));
     document.getElementById('fps').classList.toggle('hidden', !this.settings.showFps);
+    document.getElementById('test-tools').classList.toggle('hidden', !DEBUG.testTools);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
         if (this.state === 'playing' && (this.noLock || !this.locked)) this.pause();
@@ -195,6 +199,11 @@ class Game {
       case 'resume': this.requestLock(); if (this.noLock) this.resume(); break;
       case 'quit': this.quitToMenu(); break;
       case 'respawn': this.respawn(); break;
+      case 'night': case 'day': case 'spawn': case 'guide':
+        ({ night: () => this.makeNight(), day: () => this.makeDay(), spawn: () => this.spawnTestMonster(), guide: () => this.toggleGuide() })[a]();
+        this.requestLock();
+        if (this.noLock) this.resume();
+        break;
     }
   }
 
@@ -232,7 +241,7 @@ class Game {
   _exitToMenuWorld() {
     if (this.world && this.world.menu) return;
     this._disposeRun();
-    this.world = new World(this, { seed: 40213, difficulty: DIFFICULTIES.normal, menu: true, loadRadius: 2 });
+    this.world = new World(this, { seed: 40213, difficulty: DIFFICULTIES.normal, menu: true, loadRadius: 2, lightRange: this.q.lightRange });
     this.world.setPool(this.pool);
     // pick a nice spot: the first non-camp room near the origin
     this.world.loadAllAround(new THREE.Vector3(36, 0, 36));
@@ -253,6 +262,7 @@ class Game {
     this.bedBreathers = [];
     this.world = null; this.entities = null; this.throwables = null; this.tut = null;
     this.setMarker(null);
+    if (this.guide) this.guide.stop();
     this.timers = [];
   }
 
@@ -295,7 +305,7 @@ class Game {
     this.seed = tutorial ? 777 : this.forceSeed ?? (Math.random() * 2 ** 31) | 0;
     this.cycle = new Cycle();
     if (tutorial) this.cycle.paused = true;
-    this.world = new World(this, { seed: this.seed, difficulty: this.diff, tutorial, loadRadius: this.q.loadRadius });
+    this.world = new World(this, { seed: this.seed, difficulty: this.diff, tutorial, loadRadius: this.q.loadRadius, lightRange: this.q.lightRange });
     this.world.setPool(this.pool);
     this.world.isNight = () => this.cycle.isNight;
     this.player = new Player(this);
@@ -360,6 +370,62 @@ class Game {
   }
 
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
+
+  // ── test tools (pause menu + hotkeys N / T / M / G) ─────────
+  _testOk() {
+    if (!DEBUG.testTools || !this.cycle || !this.world || this.world.menu || !this.player) return false;
+    if (this.tutorial) { this.toast('Test tools are off during the tutorial.'); return false; }
+    return true;
+  }
+
+  // Jump to just before nightfall so the flicker + power cut still plays.
+  makeNight() {
+    if (!this._testOk()) return;
+    if (this.cycle.isNight) { this.toast('It\'s already night.'); return; }
+    this.cycle.t = Math.max(this.cycle.t, this.cycle.dayLength - 3);
+    this.toast('TEST · skipping to nightfall…', '', 2000);
+  }
+
+  makeDay() {
+    if (!this._testOk()) return;
+    const c = this.cycle;
+    if (c.isNight) { c.toDawn(); this.toast('TEST · skipping to morning…', '', 2000); }
+    else if (c.t > c.dayLength - CYCLE.duskWarning - 1) { c.t = 0; c._warned = false; this.toast('TEST · back to the start of the day', '', 2000); }
+    else this.toast('It\'s already daytime.');
+  }
+
+  // Spawn one monster 6–16 m away, preferring a spot you can see in front of you.
+  spawnTestMonster() {
+    if (!this._testOk()) return;
+    const P = this.player, W = this.world;
+    const cx = Math.floor(P.pos.x / 3), cz = Math.floor(P.pos.z / 3);
+    const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+    let best = null, bs = -Infinity;
+    for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) {
+      const x = (cx + dx) * 3 + 1.5, z = (cz + dz) * 3 + 1.5;
+      const d = Math.hypot(x - P.pos.x, z - P.pos.z);
+      if (d < 6 || d > 16 || W.isForbidden(x, z)) continue;
+      const los = W.lineOfSight(P.pos.x, P.pos.y + 1.6, P.pos.z, x, 1.6, z);
+      const dot = ((x - P.pos.x) * fx + (z - P.pos.z) * fz) / d;
+      const sc = (los ? 10 : 0) + dot * 3 - Math.abs(d - 10) * 0.25 + Math.random() * 0.5;
+      if (sc > bs) { bs = sc; best = { x, z, d, los }; }
+    }
+    if (!best) { this.toast('No room to spawn a monster here — step out of camp first.', 'bad'); return; }
+    const e = this.entities.spawn(best.x, best.z, !this.cycle.isNight);
+    e.noticed = true;
+    e.yaw = Math.atan2(P.pos.x - best.x, P.pos.z - best.z);
+    this.toast(`TEST · ${e.name} spawned ${Math.round(best.d)} m away${best.los ? '' : ' (out of sight)'}`, 'bad', 3000);
+  }
+
+  toggleGuide() {
+    if (!this._testOk()) return;
+    if (this.guide.active) { this.guide.stop(); this.toast('Saferoom guide off.'); return; }
+    if (this.guide.start()) {
+      const b = this.guide.bearing();
+      const keys = this.player.inv.counts.key;
+      this.toast(`Saferoom ${Math.round(b.dist)} m away — follow the arrows${this.guide.door.unlocked ? '' : ` · locked, you have ${keys} key${keys === 1 ? '' : 's'}`}`, 'good', 4000);
+    }
+  }
 
   // ── pause / resume / quit ──────────────────────────────────
   pause() {
@@ -546,6 +612,7 @@ class Game {
     this.lostStars = P.stars - keep;
     P.stars = keep;
     P.flashlightOn = false;
+    this.guide.stop();
     const scare = (opts.entity || opts.bed) && Math.random() < this.diff.jumpscareChance;
     if (scare) { this.ui.jumpscare(800); this.audio.jumpscare(); } else this.audio.death();
     if (opts.bed) { opts.bed.model.trap.visible = true; this.audio.growl(opts.bed.pos); }
@@ -691,7 +758,7 @@ class Game {
       const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
       const heading = Math.atan2(fx, -fz);
       const dx = W.campCenter.x - P.pos.x, dz = W.campCenter.z - P.pos.z;
-      this.ui.updateCompass(heading, Math.atan2(dx, -dz), Math.hypot(dx, dz), P.inCamp);
+      this.ui.updateCompass(heading, Math.atan2(dx, -dz), Math.hypot(dx, dz), P.inCamp, this.guide.bearing());
     }
 
     if (this.marker.visible) {
@@ -700,6 +767,13 @@ class Game {
       this.marker.rotation.y += dt * 2;
     }
     if (this.tut) this.tut.update(dt, this.input);
+    this.guide.update(dt);
+    if (DEBUG.testTools) {
+      if (this.input.pressed('KeyN')) this.makeNight();
+      if (this.input.pressed('KeyT')) this.makeDay();
+      if (this.input.pressed('KeyM')) this.spawnTestMonster();
+      if (this.input.pressed('KeyG')) this.toggleGuide();
+    }
   }
 
   _applyCamera() {
@@ -736,7 +810,7 @@ class Game {
     this.scene.background.copy(this.scene.fog.color);
     const fogDay = this.q.fogDay;
     this.scene.fog.near = lerp(7, 1.5, nightK);
-    this.scene.fog.far = lerp(fogDay, 24, nightK);
+    this.scene.fog.far = lerp(fogDay, this.q.fogNight, nightK);
   }
 
   _updateBeds(dt) {

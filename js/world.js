@@ -14,7 +14,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import * as THREE from '../lib/three.module.min.js';
-import { CELL, CHUNK_CELLS as N, CHUNK_SIZE as CS, WALL_H, WALL_T as T, DOOR_GAP, DOOR_H } from './config.js';
+import { CELL, CHUNK_CELLS as N, CHUNK_SIZE as CS, WALL_H, WALL_T as T, DOOR_GAP, DOOR_H, NIGHT_LIGHTS } from './config.js';
 import { hash32, mulberry32, shuffle, range, weighted, hashFloat } from './rng.js';
 import { GeoBuilder } from './geo.js';
 import * as Models from './models.js';
@@ -45,6 +45,7 @@ export class World {
     this.tutorial = !!opts.tutorial;
     this.menu = !!opts.menu;
     this.loadRadius = opts.loadRadius ?? 2;
+    this.lightRange = opts.lightRange ?? 30;
 
     this.chunks = new Map();
     this.borderCache = new Map();
@@ -292,7 +293,9 @@ export class World {
     for (const l of leaves) {
       const cells = [];
       for (let x = l.x; x < l.x + l.w; x++) for (let z = l.z; z < l.z + l.h; z++) cells.push([x, z]);
-      const k = Math.min(cells.length, 1 + (rng() < 0.35 ? 1 : 0) + (rng() < 0.12 ? 1 : 0));
+      // night: many rooms go completely dark, the rest keep 1 (rarely 2–3) dim lights
+      const dark = !l.camp && rng() < NIGHT_LIGHTS.darkRoomChance;
+      const k = dark ? 0 : Math.min(cells.length, 1 + (rng() < NIGHT_LIGHTS.extraLightChance ? 1 : 0) + (rng() < 0.06 ? 1 : 0));
       const nightSet = new Set(shuffle(cells.slice(), rng).slice(0, k).map((c) => c[0] + ',' + c[1]));
       for (const c of cells) {
         const r = rng();
@@ -371,7 +374,7 @@ export class World {
       if (l.safe) nCab = l.bed ? 1 : 2;
       else {
         if (rng() < d.drawerChance) nCab++;
-        if (l.w * l.h >= 6 && rng() < d.drawerChance * 0.45) nCab++;
+        if (l.w * l.h >= 6 && rng() < d.drawerChance * 0.35) nCab++;
       }
       for (let i = 0; i < nCab && free.length; i++) {
         const s = free.shift();
@@ -544,7 +547,9 @@ export class World {
     if (unlocked) for (const l of leds) l.material = this.M.ledGreen;
     const pos = axis === 'h' ? new THREE.Vector3(mid, 1.2, line) : new THREE.Vector3(line, 1.2, mid);
     const door = {
-      kind: 'sdoor', id, pos, r: 0.9, unlocked, pivot, leds, box,
+      kind: 'sdoor', id, pos, r: 0.9, unlocked, pivot, leds, box, chunkKey: chunk.key,
+      // the walkable spot just outside the door (used by the saferoom guide)
+      outside: axis === 'h' ? { x: mid, z: line - side * 1.5 } : { x: line - side * 1.5, z: mid },
       unlock: () => {
         door.unlocked = true;
         this.state.unlocked.add(id);
@@ -571,7 +576,7 @@ export class World {
       chunk.lights.push({
         kind: 'panel', x, y: WALL_H - 0.25, z, inst: i, day: l.day, nightOn: l.nightOn,
         seed: hash32(this.seed, chunk.cx, chunk.cz, i) / 4294967296 * 100, b: -1,
-        color: 0xfff1cf, intensity: 7.5, range: 9.5, weight: 1,
+        color: 0xfff1cf, intensity: 7.5, range: 10.5, weight: 1,
       });
     });
     panels.instanceMatrix.needsUpdate = true;
@@ -684,7 +689,7 @@ export class World {
       l.group.position.set(x, 0, z);
       g.add(l.group);
       chunk.boxes.push({ minX: x - 0.27, maxX: x + 0.27, minZ: z - 0.27, maxZ: z + 0.27, top: 0.8, bottom: 0, on: true, chunk });
-      chunk.lights.push({ kind: 'lantern', x, y: 0.75, z, seed: x * 3.1 + z, b: -1, color: 0xffa860, intensity: 6, range: 10, weight: 3 });
+      chunk.lights.push({ kind: 'lantern', x, y: 0.75, z, seed: x * 3.1 + z, b: -1, color: 0xffa860, intensity: 6, range: 12, weight: 3 });
     }
     // campfire
     const fire = Models.campfire(M);
@@ -867,13 +872,13 @@ export class World {
   isForbidden(x, z) { const r = this.roomAt(x, z); return !r || r.camp || r.safe; }
 
   // BFS on the cell grid for entities (avoids camp + saferooms).
-  findPath(sx, sz, tx, tz, maxNodes = 900) {
+  findPath(sx, sz, tx, tz, maxNodes = 900, allowCamp = false) {
     const s0 = Math.floor(sx / CELL), s1 = Math.floor(sz / CELL);
     const t0 = Math.floor(tx / CELL), t1 = Math.floor(tz / CELL);
     if (s0 === t0 && s1 === t1) return [{ x: tx, z: tz }];
     const tk = cellKey(t0, t1);
     const tr = this.cellInfo.get(tk);
-    if (!tr || tr.camp || tr.safe) return null;
+    if (!tr || tr.safe || (tr.camp && !allowCamp)) return null;
     const prev = new Map();
     const startK = cellKey(s0, s1);
     prev.set(startK, null);
@@ -891,7 +896,7 @@ export class World {
         const nk = cellKey(nx, nz);
         if (prev.has(nk) || this.blockEdges.has(ek)) continue;
         const r = this.cellInfo.get(nk);
-        if (!r || r.camp || r.safe) continue;
+        if (!r || r.safe || (r.camp && !allowCamp)) continue;
         prev.set(nk, k);
         q.push([nx, nz]);
       }
@@ -961,7 +966,7 @@ export class World {
   _lightValue(L, f, time, ents) {
     if (L.kind === 'lantern') return 0.94 + 0.06 * Math.sin(time * 2.3 + L.seed * 10);
     if (L.kind === 'fire') return 0.78 + 0.22 * hashFloat(Math.floor(time * 14), L.seed);
-    let v = f.day * (L.day === 'dead' ? 0 : 1) + f.night * (L.nightOn ? 0.32 : 0);
+    let v = f.day * (L.day === 'dead' ? 0 : 1) + f.night * (L.nightOn ? NIGHT_LIGHTS.level : 0);
     if (v <= 0.001) return 0;
     let amt = 0;
     if (L.day === 'flicker' && f.day > 0.5) amt = 0.45;
@@ -983,36 +988,44 @@ export class World {
     const global = !lf || f.chaos > 0 || lf.chaos > 0 || Math.abs(f.day - lf.day) > 1e-3 || Math.abs(f.night - lf.night) > 1e-3 || Math.abs(f.ambient - lf.ambient) > 1e-3;
     this._lastF = { day: f.day, night: f.night, chaos: f.chaos, ambient: f.ambient };
     const off = 0.03 + 0.32 * Math.min(1, f.ambient);
+    const range = this.lightRange;      // how far away real lights get switched on
+    const range2 = range * range;
     const cand = this._cand;
     cand.length = 0;
     let flickNear = 0;
     for (const c of this.chunks.values()) {
-      const near = Math.abs(c.cx - pcx) <= 1 && Math.abs(c.cz - pcz) <= 1;
-      if (!near && !global && !c.lightsDirty) continue;
-      const force = c.lightsDirty || global;
-      c.lightsDirty = false;
-      let changed = false;
+      const cd = Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz));
+      const near = cd <= 1;
+      if (near || global || c.lightsDirty) {
+        const force = c.lightsDirty || global;
+        c.lightsDirty = false;
+        let changed = false;
+        for (let i = 0; i < c.lights.length; i++) {
+          const L = c.lights[i];
+          const b = this._lightValue(L, f, time, near ? ents : null);
+          if (force || Math.abs(b - L.b) > 0.01) {
+            L.b = b;
+            if (L.inst !== undefined) {
+              tmpColor.setRGB(off + (1 - off) * b, off + (0.97 - off) * b, off * 0.94 + (0.84 - off * 0.94) * b);
+              c.panels.setColorAt(L.inst, tmpColor);
+              changed = true;
+            }
+          }
+        }
+        if (changed) c.panels.instanceColor.needsUpdate = true;
+      }
+      // candidates for the real point-light pool
+      if (cd > 2) continue;
       for (let i = 0; i < c.lights.length; i++) {
         const L = c.lights[i];
-        const b = this._lightValue(L, f, time, near ? ents : null);
-        if (force || Math.abs(b - L.b) > 0.01) {
-          L.b = b;
-          if (L.inst !== undefined) {
-            tmpColor.setRGB(off + (1 - off) * b, off + (0.97 - off) * b, off * 0.94 + (0.84 - off * 0.94) * b);
-            c.panels.setColorAt(L.inst, tmpColor);
-            changed = true;
-          }
-        }
-        if (near && L.b > 0.03) {
-          const dx = L.x - playerPos.x, dz = L.z - playerPos.z, d2 = dx * dx + dz * dz;
-          if (d2 < 420) {
-            L.score = (L.b * L.weight) / (d2 + 6);
-            cand.push(L);
-            if (L.amt > 0.3 && d2 < 64 && L.amt > flickNear) flickNear = L.amt;
-          }
-        }
+        if (L.b <= 0.03) continue;
+        const dx = L.x - playerPos.x, dz = L.z - playerPos.z, d2 = dx * dx + dz * dz;
+        if (d2 >= range2) continue;
+        L.d2 = d2;
+        L.score = (L.b * L.weight) / (d2 + 6);
+        cand.push(L);
+        if (L.amt > 0.3 && d2 < 64 && L.amt > flickNear) flickNear = L.amt;
       }
-      if (changed) c.panels.instanceColor.needsUpdate = true;
     }
     this.flickerNear = flickNear;
     cand.sort((a, b) => b.score - a.score);
@@ -1020,12 +1033,13 @@ export class World {
     for (let i = 0; i < this.pool.length; i++) {
       const P = this.pool[i], L = cand[i];
       if (L) {
+        // fade lights in over the last 6 m of range so they don't pop on
+        const fade = Math.min(1, (range - Math.sqrt(L.d2)) / 6);
         P.position.set(L.x, L.y, L.z);
         P.color.setHex(L.color);
-        P.intensity = L.b * L.intensity;
-        P.distance = L.kind === 'panel' && f.day < 0.5 ? L.range * 0.72 : L.range;
-        const dx = L.x - playerPos.x, dz = L.z - playerPos.z;
-        env += (L.b * L.intensity * 0.09) / (1 + (dx * dx + dz * dz) * 0.18);
+        P.intensity = L.b * L.intensity * fade;
+        P.distance = L.kind === 'panel' && f.day < 0.5 ? L.range * NIGHT_LIGHTS.rangeMult : L.range;
+        env += (L.b * L.intensity * fade * 0.09) / (1 + L.d2 * 0.18);
       } else P.intensity = 0;
     }
     this.envLight = env;
