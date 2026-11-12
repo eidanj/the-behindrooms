@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Behindrooms</title>
+  <meta name="description" content="A 3D first-person survival horror game in an endless Backrooms-style office maze." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%23111%22/%3E%3Crect x=%226%22 y=%228%22 width=%2220%22 height=%226%22 fill=%22%23e8d27a%22/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- screen-space effects (order matters: red proximity tint is always on top) -->
+  <div id="fx">
+    <div id="fx-dim" class="fx"></div>
+    <div id="fx-vig" class="fx"></div>
+    <div id="fx-flick" class="fx"></div>
+    <div id="fx-red" class="fx"></div>
+    <div id="fx-grain" class="fx"></div>
+    <div id="fx-scan" class="fx"></div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-tl">
+      <div class="rec"><span class="dot"></span>REC <span id="hud-tape">00:00:00</span></div>
+      <div id="hud-day">DAY 1</div>
+      <div id="hud-phase"><span id="hud-phase-icon">☀</span> <span id="hud-phase-name">DAY</span> · <span id="hud-clock">10:00</span></div>
+      <div class="bar thin"><div id="hud-time-bar"></div></div>
+    </div>
+
+    <div id="hud-top">
+      <div id="compass">
+        <div id="compass-ticks"></div>
+        <div id="compass-camp">⛺</div>
+        <div id="compass-center"></div>
+      </div>
+      <div id="compass-dist"></div>
+      <div id="chase" class="hidden"></div>
+    </div>
+
+    <div id="hud-tr">
+      <div id="stars"><span class="star">★</span><b id="stars-carried">0</b><small>carried</small></div>
+      <div id="banked"><span id="stars-banked">0</span> / 30 banked at camp</div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="prompt"></div>
+    <div id="toasts"></div>
+
+    <div id="hud-br">
+      <div class="stat" id="st-sanity"><label>SANITY</label><div class="bar"><div></div></div><span>100</span></div>
+      <div class="stat" id="st-hunger"><label>HUNGER</label><div class="bar"><div></div></div><span>100</span></div>
+      <div class="stat" id="st-energy"><label>ENERGY</label><div class="bar"><div></div></div><span>20</span></div>
+      <div class="stat" id="st-battery"><label>BATTERY</label><div class="bar"><div></div></div><span>100%</span></div>
+      <div id="effects"></div>
+    </div>
+
+    <div id="hotbar"></div>
+    <div id="fps" class="hidden"></div>
+  </div>
+
+  <div id="tutorial" class="hidden">
+    <div class="tut-head"><span class="tut-step"></span><span class="tut-skip">ESC · pause</span></div>
+    <div class="tut-text"></div>
+    <div class="tut-hint"></div>
+  </div>
+
+  <div id="title-card"></div>
+  <div id="fade"></div>
+  <div id="jumpscare"><canvas id="js-canvas" width="600" height="600"></canvas></div>
+
+  <!-- ── screens ─────────────────────────────────────────── -->
+  <section id="scr-splash" class="screen active">
+    <div class="splash-inner">
+      <div class="warn-icon">⚠</div>
+      <p class="splash-line">This game contains flashing lights, darkness and loud sounds.</p>
+      <p class="splash-line dim">Headphones recommended.</p>
+      <button class="btn big" id="btn-splash">CLICK TO ENTER</button>
+    </div>
+  </section>
+
+  <section id="scr-loading" class="screen">
+    <div class="loading-inner">
+      <div class="loading-text">NOCLIPPING<span class="dots"></span></div>
+      <div class="bar loading-bar"><div id="loading-fill"></div></div>
+    </div>
+  </section>
+
+  <section id="scr-menu" class="screen menu-bg">
+    <div class="menu-wrap">
+      <div class="menu-left">
+        <div class="tape-label">TAPE 07 · LEVEL ∞ · <span id="menu-clock">--:--</span></div>
+        <h1 class="title" data-text="THE BEHINDROOMS">THE BEHINDROOMS</h1>
+        <div class="subtitle">you were never supposed to be back here.</div>
+        <nav class="menu-list">
+          <button class="mbtn" data-action="new"><span class="caret">▶</span>NEW GAME</button>
+          <button class="mbtn" data-action="tutorial"><span class="caret">▶</span>TUTORIAL</button>
+          <button class="mbtn" data-action="howto"><span class="caret">▶</span>HOW TO PLAY</button>
+          <button class="mbtn" data-action="settings"><span class="caret">▶</span>SETTINGS</button>
+        </nav>
+        <div class="menu-foot">Collect 30 ★ · Survive the night · Return to camp</div>
+      </div>
+      <div class="menu-right">
+        <div class="vhs-box">
+          <div class="vhs-row"><span>PLAY ▶</span><span class="blink">●</span></div>
+          <div class="vhs-row small">SP · CH 03</div>
+          <div class="vhs-row small" id="menu-best"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-diff" class="screen menu-bg">
+    <div class="panel wide">
+      <h2>SELECT DIFFICULTY</h2>
+      <div class="diff-cards">
+        <button class="diff-card" data-diff="easy">
+          <div class="diff-name">EASY</div>
+          <ul>
+            <li>No jumpscares, quieter audio</li>
+            <li>Brighter nights</li>
+            <li>Fewer entities, 8% slower</li>
+            <li>More drawers, batteries &amp; food</li>
+            <li>Slower stat drain</li>
+            <li>Keep half your carried ★ on death</li>
+          </ul>
+        </button>
+        <button class="diff-card selected" data-diff="normal">
+          <div class="diff-name">NORMAL</div>
+          <ul>
+            <li>The standard experience</li>
+            <li>No jumpscares</li>
+            <li>Normal audio &amp; brightness</li>
+            <li>Normal loot &amp; stat drain</li>
+          </ul>
+        </button>
+        <button class="diff-card" data-diff="hard">
+          <div class="diff-name">HARD</div>
+          <ul>
+            <li>Intense, scary audio</li>
+            <li>8% chance of rare jumpscares</li>
+            <li>Faster stat drain</li>
+            <li>Scarcer drawers, batteries, food &amp; drinks</li>
+            <li>Darker nights</li>
+          </ul>
+        </button>
+      </div>
+      <div class="row-btns">
+        <button class="btn" data-action="back">BACK</button>
+        <button class="btn primary" data-action="start">ENTER THE BEHINDROOMS</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-howto" class="screen menu-bg">
+    <div class="panel wide scroll">
+      <h2>HOW TO PLAY</h2>
+      <div class="howto-grid">
+        <div>
+          <h3>Goal</h3>
+          <p>You've noclipped into an endless office maze. Collect <b>30 ★ Stars</b>, bring them back to the <b>camp</b> where you started, and step through the <b>Escape Portal</b>.</p>
+          <p>Earn a star by <b>escaping a chase</b> (break line-of-sight with a monster and survive 20 seconds) or by <b>squashing a monster</b> hiding in a saferoom bed. Stars you carry are lost if you die. Walk into camp to bank them safely.</p>
+          <h3>Day &amp; Night</h3>
+          <p><b>Day</b> lasts 10 minutes. The lights are on, the music is calm, and monsters are rare — they just follow you slowly.</p>
+          <p>When the lights start to <b>flicker violently</b>, night is coming. The power dies, only 1–3 dim lights per room stay on, and monsters roam. Night lasts 6 minutes.</p>
+          <h3>Monsters</h3>
+          <p>They're <b>blind</b> and hunt by <b>sound</b>. Walking can be heard from 5–20 ft, sprinting from 10–35 ft. At night, if one gets <b>line of sight</b>, it sprints at you slightly faster than you walk — so sprint away and break line of sight.</p>
+          <p>Nearby monsters make lights and your flashlight flicker, drain your sanity and tint your vision red. Listen for heavy breathing.</p>
+          <p>Your flashlight makes you easier to spot at night. Press <b>L</b> to turn it off.</p>
+        </div>
+        <div>
+          <h3>Controls</h3>
+          <table class="keys">
+            <tr><td><kbd>W A S D</kbd></td><td>Move</td></tr>
+            <tr><td><kbd>Mouse</kbd></td><td>Look</td></tr>
+            <tr><td><kbd>Shift</kbd></td><td>Sprint (+20% speed, needs Hunger ≥ 35)</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>Jump</td></tr>
+            <tr><td><kbd>E</kbd></td><td>Interact · open drawers · pick up · unlock · sleep</td></tr>
+            <tr><td><kbd>L</kbd></td><td>Flashlight on / off</td></tr>
+            <tr><td><kbd>R</kbd></td><td>Replace flashlight battery</td></tr>
+            <tr><td><kbd>1</kbd>–<kbd>6</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food/drink type)</td></tr>
+            <tr><td><kbd>Left click</kbd></td><td>Use held item (eat, drink, throw, flashlight)</td></tr>
+            <tr><td><kbd>Right click</kbd></td><td>Drop banana peel at your feet</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
+          </table>
+          <h3>Survival</h3>
+          <p><b>Sanity</b> slowly drains, faster at night and near monsters. Below 50 your vision greys and you tire faster; below 30 it darkens; below 10 it flickers. At 0 you die.</p>
+          <p><b>Hunger</b> drains while you move (3× while sprinting). Below 35 you can't sprint and your sanity drains.</p>
+          <p><b>Energy</b> drains while moving. At 0 you're exhausted and slow. Stand still to slowly recover.</p>
+          <h3>Loot</h3>
+          <p>Search <b>filing cabinets</b> for batteries (5 min each), food, drinks and <b>Saferoom Keys</b>. Saferooms are sealed, monster-proof rooms; some have a <b>bed</b> to sleep through the night. But at night, listen at the door — if you hear breathing and see a bulge under the blanket, <b>don't sleep</b>. Jump on it instead.</p>
+          <p>Throw <b>rocks</b> to lure monsters away or hit them to trip them. Throw or drop <b>banana peels</b> to make chasers slip.</p>
+        </div>
+      </div>
+      <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
+    </div>
+  </section>
+
+  <section id="scr-settings" class="screen menu-bg">
+    <div class="panel">
+      <h2>SETTINGS</h2>
+      <div class="settings">
+        <label>Mouse sensitivity <span data-out="sensitivity"></span><input type="range" min="0.2" max="3" step="0.05" data-set="sensitivity" /></label>
+        <label>Field of view <span data-out="fov"></span><input type="range" min="60" max="100" step="1" data-set="fov" /></label>
+        <label>Brightness <span data-out="brightness"></span><input type="range" min="0.6" max="1.8" step="0.05" data-set="brightness" /></label>
+        <label>Master volume <span data-out="masterVolume"></span><input type="range" min="0" max="1" step="0.01" data-set="masterVolume" /></label>
+        <label>Music volume <span data-out="musicVolume"></span><input type="range" min="0" max="1" step="0.01" data-set="musicVolume" /></label>
+        <label class="row">Graphics quality
+          <select data-set="quality"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High (flashlight shadows)</option></select>
+        </label>
+        <label class="row check"><input type="checkbox" data-set="headBob" /> Camera tilt &amp; head-bob</label>
+        <label class="row check"><input type="checkbox" data-set="invertY" /> Invert mouse Y</label>
+        <label class="row check"><input type="checkbox" data-set="showFps" /> Show FPS counter</label>
+      </div>
+      <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
+    </div>
+  </section>
+
+  <section id="scr-pause" class="screen dim">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <nav class="menu-list center">
+        <button class="mbtn" data-action="resume"><span class="caret">▶</span>RESUME</button>
+        <button class="mbtn" data-action="settings"><span class="caret">▶</span>SETTINGS</button>
+        <button class="mbtn" data-action="howto"><span class="caret">▶</span>HOW TO PLAY</button>
+        <button class="mbtn" data-action="quit"><span class="caret">▶</span>QUIT TO MENU</button>
+      </nav>
+    </div>
+  </section>
+
+  <section id="scr-death" class="screen black">
+    <div class="end-inner">
+      <div class="end-title red">YOU DIED</div>
+      <div class="end-msg" id="death-msg"></div>
+      <div class="end-sub" id="death-sub"></div>
+      <div class="row-btns">
+        <button class="btn primary" data-action="respawn">RESPAWN AT CAMP</button>
+        <button class="btn" data-action="quit">MAIN MENU</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-win" class="screen black">
+    <div class="end-inner">
+      <div class="end-title cyan">YOU ESCAPED</div>
+      <div class="end-msg">The portal swallows the hum of the lights. For the first time in days, it's quiet.</div>
+      <div class="end-sub" id="win-stats"></div>
+      <div class="row-btns"><button class="btn primary" data-action="quit">MAIN MENU</button></div>
+    </div>
+  </section>
+
+  <section id="scr-tutdone" class="screen dim">
+    <div class="panel">
+      <h2>TUTORIAL COMPLETE</h2>
+      <p class="center-text">You know the basics. The real Behindrooms won't be this kind — the lights will go out.</p>
+      <div class="row-btns">
+        <button class="btn" data-action="quit">MAIN MENU</button>
+        <button class="btn primary" data-action="new">PLAY NOW</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-resume" class="screen dim">
+    <div class="panel">
+      <h2>CLICK TO CONTINUE</h2>
+      <p class="center-text">The game needs to capture your mouse to look around.</p>
+      <div class="row-btns"><button class="btn primary" data-action="resume">CONTINUE</button></div>
+    </div>
+  </section>
+
+  <div id="file-warning" class="hidden">
+    <h2>Open this through a web server</h2>
+    <p>Browsers block JavaScript modules on <code>file://</code> pages.</p>
+    <p>In VS Code, install the <b>Live Server</b> extension, right-click <code>index.html</code> → <b>Open with Live Server</b>.<br/>Or run <code>npx serve .</code> / <code>python -m http.server</code> in this folder, or push it to GitHub Pages.</p>
+  </div>
+</div>
+
+<script>
+  if (location.protocol === 'file:') {
+    document.getElementById('file-warning').classList.remove('hidden');
+  }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
