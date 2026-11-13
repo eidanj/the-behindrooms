@@ -28,6 +28,10 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 
 ## Controls
 
+On phones and tablets, touch controls turn on automatically (change it in **Settings → Touch controls**). Use the left thumbstick to move, drag the right side to look, and **tap anywhere to punch**. On-screen buttons cover attack, use item, jump, interact, sprint, flashlight, battery, drop peel and pause. Tap hotbar slots to switch items. Play in landscape.
+
+**Keyboard and mouse:**
+
 | Key | Action |
 |---|---|
 | **W A S D** | Move |
@@ -37,9 +41,9 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 | **E** | Interact: search drawers, pick up, unlock saferooms, sleep, portal |
 | **L** | Flashlight on/off |
 | **R** | Replace flashlight battery |
-| **F** | Melee attack: punch, or swing your weapon |
+| **F** / **click** | Punch, or swing your weapon. Clicking punches unless you're holding food, a drink, a rock or a peel |
 | **1–7 / mouse wheel** | Select item. Press a number again to cycle food, drink or weapon |
-| **Left click** | Use held item (eat, drink, throw, attack, toggle flashlight) |
+| **Left click** | Eat / drink / throw the held item, otherwise punch |
 | **Right click** | Drop a banana peel at your feet |
 | **Esc** | Pause |
 
@@ -51,7 +55,7 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 - **Escaping:** break line of sight and survive 20 seconds to escape a chase and earn **+1 ★**.
 - **Saferooms:** locked rooms entities can't enter. Keys come from drawers (8%). 15% have a **bed** that lets you sleep through the night. At night the bed may be **trapped**. Listen for breathing and look for a bulge with a limb sticking out. Sleeping in it kills you. **Jump on it 4 times** (within about 7 seconds of the first hit) to squash the monster for **+1 ★**.
 - **Rocks:** throw to make noise and lure entities, or hit one to trip it. **Banana peels:** throw or drop them, and chasing entities that step on one slip and fall.
-- **Fighting:** press **F** (or slot 7 + click) to punch. Drawers can hold weapons that hit harder but break. Every hit knocks the monster back and stuns it briefly, and monsters already knocked down by a rock or peel take double damage. **Killing a monster gives +1 ★**. Hitting a monster in daylight makes it hostile.
+- **Fighting:** press **F** or click anywhere to punch (tap anywhere on mobile). Drawers can hold weapons that hit harder but break. Every hit knocks the monster back and stuns it briefly, and monsters already knocked down by a rock or peel take double damage. **Killing a monster gives +1 ★**. Hitting a monster in daylight makes it hostile.
 - **Stars:** walking into camp banks the stars you carry. If you die, carried stars are lost (Easy keeps half).
 
 ### Survival stats
@@ -122,7 +126,9 @@ js/ui.js            DOM HUD, hotbar, compass, toasts, screen effects
 js/tutorial.js      Interactive tutorial steps
 js/guide.js         Test tool: arrow trail to the nearest saferoom
 js/combat.js        Melee combat: hit detection, damage, weapon wear, gore particles
+js/icons.js         Monochrome SVG icons (used instead of emoji)
 js/input.js         Keyboard and mouse
+js/touch.js         On-screen touch controls + device detection
 ```
 
 **Test tools:** press **Esc** to pause, then use the **Test tools** panel, or press the hotkey while playing:
@@ -133,6 +139,7 @@ js/input.js         Keyboard and mouse
 | **T** | Become daytime. Skips to morning. |
 | **M** | Spawn a monster 6–16 m away, in view if possible. |
 | **G** | Guide to the nearest saferoom with floor arrows, a beacon over the door and a compass marker. Press again to turn it off. |
+| **B** | Spawn a trapped bed (with a monster hiding in it) in front of you, to test squashing. |
 
 Turn them all off for release by setting `DEBUG.testTools = false` in `js/config.js`.
 

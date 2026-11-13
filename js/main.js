@@ -17,6 +17,7 @@ import { UI } from './ui.js';
 import { Input } from './input.js';
 import { Tutorial } from './tutorial.js';
 import { Guide } from './guide.js';
+import { TouchControls, isTouchDevice } from './touch.js';
 import { weighted, lerp } from './rng.js';
 
 const SETTINGS_KEY = 'behindrooms.settings.v1';
@@ -28,10 +29,12 @@ const DAY_FOG = new THREE.Color(0xc9bd92);
 const NIGHT_FOG = new THREE.Color(0x020202);
 
 function loadSettings() {
+  const base = { ...DEFAULT_SETTINGS };
+  if (isTouchDevice()) base.quality = 'low'; // phones/tablets start on the fastest preset
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
-    return { ...DEFAULT_SETTINGS, ...s };
-  } catch (e) { return { ...DEFAULT_SETTINGS }; }
+    return { ...base, ...s };
+  } catch (e) { return base; }
 }
 function saveSettings(s) { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* storage unavailable */ } }
 
@@ -87,6 +90,7 @@ class Game {
     this.scene.add(this.marker);
     this.guide = new Guide(this);
     this.combat = new Combat(this);
+    this.touch = new TouchControls(this);
 
     this.state = 'splash';
     this.world = null; this.player = null; this.entities = null; this.throwables = null; this.cycle = null;
@@ -104,6 +108,7 @@ class Game {
     this._bindUI();
     document.addEventListener('pointerlockchange', () => this._onLockChange());
     document.addEventListener('pointerlockerror', () => { this.noLock = true; this.input.allowUnlocked = true; if (this.state === 'resume') this.resume(); });
+    this._applyTouchMode();
     window.__game = this;
     requestAnimationFrame((t) => this.loop(t));
   }
@@ -140,6 +145,18 @@ class Game {
     if (k === 'masterVolume' || k === 'musicVolume') this.audio.setVolumes(s.masterVolume, s.musicVolume);
     if (k === 'quality') this._applyQuality(true);
     if (k === 'showFps') document.getElementById('fps').classList.toggle('hidden', !s.showFps);
+    if (k === 'touchControls') this._applyTouchMode();
+  }
+
+  // touch controls: Auto (detect the device), On or Off — Settings → Touch controls
+  _applyTouchMode() {
+    const m = this.settings.touchControls || 'auto';
+    this.touchMode = m === 'on' || (m === 'auto' && isTouchDevice());
+    document.getElementById('app').classList.toggle('touch', this.touchMode);
+    if (this.touchMode) { this.noLock = true; this.input.allowUnlocked = false; }
+    else if (this._wasTouch) { this.noLock = false; }
+    this._wasTouch = this.touchMode;
+    this.ui.lastHot = '';
   }
 
   resize() {
@@ -154,6 +171,14 @@ class Game {
   _bindUI() {
     const on = (sel, fn) => document.querySelectorAll(sel).forEach((el) => el.addEventListener('click', fn));
     document.getElementById('btn-splash').addEventListener('click', () => {
+      if (this.touchMode) {
+        try {
+          const el = document.documentElement;
+          const req = el.requestFullscreen || el.webkitRequestFullscreen;
+          const p = req && req.call(el);
+          if (p && p.then) p.then(() => screen.orientation?.lock?.('landscape').catch(() => {})).catch(() => {});
+        } catch (e) { /* fullscreen not available (e.g. iPhone Safari) */ }
+      }
       this.audio.init();
       this.audio.setMenuMode(true);
       this.enterMenu();
@@ -201,8 +226,8 @@ class Game {
       case 'resume': this.requestLock(); if (this.noLock) this.resume(); break;
       case 'quit': this.quitToMenu(); break;
       case 'respawn': this.respawn(); break;
-      case 'night': case 'day': case 'spawn': case 'guide':
-        ({ night: () => this.makeNight(), day: () => this.makeDay(), spawn: () => this.spawnTestMonster(), guide: () => this.toggleGuide() })[a]();
+      case 'night': case 'day': case 'spawn': case 'guide': case 'bed':
+        ({ night: () => this.makeNight(), day: () => this.makeDay(), spawn: () => this.spawnTestMonster(), guide: () => this.toggleGuide(), bed: () => this.spawnTestBed() })[a]();
         this.requestLock();
         if (this.noLock) this.resume();
         break;
@@ -418,6 +443,32 @@ class Game {
     e.noticed = true;
     e.yaw = Math.atan2(P.pos.x - best.x, P.pos.z - best.z);
     this.toast(`TEST · ${e.name} spawned ${Math.round(best.d)} m away${best.los ? '' : ' (out of sight)'}`, 'bad', 3000);
+  }
+
+  // Drop a bed with a monster hiding in it a few metres in front of you.
+  spawnTestBed() {
+    if (!this._testOk()) return;
+    const P = this.player, W = this.world;
+    const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+    const across = Math.abs(fx) > Math.abs(fz); // looking along x → lay the bed along z so you see its side
+    for (const rot of [across, !across]) {
+      const hx = rot ? 0.5 : 1.0, hz = rot ? 1.0 : 0.5;
+      for (const d of [2.4, 2.9, 3.5, 4.2, 1.9]) {
+        for (const lat of [0, 0.7, -0.7, 1.3, -1.3]) {
+          const x = P.pos.x + fx * d - fz * lat, z = P.pos.z + fz * d + fx * lat;
+          const m = 0.12;
+          if (!W.rectFree(x - hx - m, x + hx + m, z - hz - m, z + hz + m)) continue;
+          // keep it clear of the player
+          const cx = Math.max(x - hx, Math.min(P.pos.x, x + hx)), cz = Math.max(z - hz, Math.min(P.pos.z, z + hz));
+          if (Math.hypot(P.pos.x - cx, P.pos.z - cz) < 0.6) continue;
+          const bed = W.spawnTestBed(x, z, rot);
+          if (!bed) continue;
+          this.toast('TEST · Trapped bed spawned — listen for breathing, then jump on it 4 times!', 'bad', 4000);
+          return;
+        }
+      }
+    }
+    this.toast('No space for a bed here — face an open area and try again.', 'bad');
   }
 
   toggleGuide() {
@@ -792,6 +843,7 @@ class Game {
       if (this.input.pressed('KeyT')) this.makeDay();
       if (this.input.pressed('KeyM')) this.spawnTestMonster();
       if (this.input.pressed('KeyG')) this.toggleGuide();
+      if (this.input.pressed('KeyB')) this.spawnTestBed();
     }
   }
 
@@ -905,6 +957,8 @@ class Game {
         break;
       default: break;
     }
+    this.touch.setVisible(this.touchMode && this.state === 'playing');
+    if (this.touch.visible) this.touch.setReady(!!this.focus);
     this.audio.update(dt);
     this.render();
     this.input.endFrame();

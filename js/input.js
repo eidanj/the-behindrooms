@@ -8,6 +8,7 @@ export class Input {
     this.mouse = new Set();
     this.pressedMouse = new Set();
     this.dx = 0; this.dy = 0; this.wheel = 0;
+    this.moveX = 0; this.moveY = 0; // analog stick (touch); −y = forward
     this.enabled = true;
     this.allowUnlocked = false;
 
@@ -34,6 +35,11 @@ export class Input {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('contextmenu', (e) => { if (document.pointerLockElement === canvas) e.preventDefault(); });
   }
+
+  // used by the touch controls
+  press(code) { this.pressedKeys.add(code); }
+  hold(code, on) { if (on) this.keys.add(code); else this.keys.delete(code); }
+  click(button) { this.pressedMouse.add(button); }
 
   down(code) { return this.keys.has(code); }
   pressed(code) { return this.pressedKeys.has(code); }

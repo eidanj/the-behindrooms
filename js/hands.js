@@ -209,6 +209,16 @@ export class Hands {
     });
   }
 
+  // swap the held model immediately (no lower/raise animation)
+  snapTo(held) {
+    if (this.current && this.items[this.current]) this.items[this.current].visible = false;
+    this.current = held;
+    this.pending = held;
+    if (held && this.items[held]) this.items[held].visible = true;
+    this.switching = false;
+    this.switchT = 0;
+  }
+
   resize(aspect) { this.camera.aspect = aspect; this.camera.updateProjectionMatrix(); }
 
   play(type) {

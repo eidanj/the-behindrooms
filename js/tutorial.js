@@ -1,6 +1,8 @@
 // Interactive tutorial, played inside the (safe) spawn camp.
 // Each step either waits for Enter (info) or for the player to do something.
 
+import { ICON } from './icons.js';
+
 export class Tutorial {
   constructor(game) {
     this.game = game;
@@ -48,7 +50,7 @@ export class Tutorial {
         check: () => this.ev.peel >= 1,
       },
       {
-        text: 'You can <b>fight back</b>. Press <kbd>F</kbd> to throw a punch (or press <kbd>7</kbd> and left-click).<br><br>Fists are weak. Drawers can hold a <b>lead pipe, crowbar, bat or fire axe</b>. They hit much harder but break. Every hit knocks a monster back; ones already knocked down take <b>double damage</b>.',
+        text: 'You can <b>fight back</b>. Press <kbd>F</kbd> to throw a punch, or just click anywhere.<br><br>Fists are weak. Drawers can hold a <b>lead pipe, crowbar, bat or fire axe</b>. They hit much harder but break. Every hit knocks a monster back; ones already knocked down take <b>double damage</b>.',
         setup: () => g.setMarker(null),
         check: () => this.ev.attack >= 1,
       },
@@ -68,7 +70,7 @@ export class Tutorial {
         check: () => this.ev.portal >= 1,
       },
       {
-        text: 'The <b>compass</b> at the top of the screen always points back to camp ⛺. The maze is endless, so don\'t lose it.',
+        text: `The <b>compass</b> at the top of the screen always points back to camp ${ICON.tent}. The maze is endless, so don't lose it.`,
         info: true,
         setup: () => { g.setMarker(null); g.ui.glow('#compass'); },
       },

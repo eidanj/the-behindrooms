@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>The Behindrooms</title>
   <meta name="description" content="A 3D first-person survival horror game in an endless Backrooms-style office maze." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 fill=%22%23111%22/%3E%3Crect x=%226%22 y=%228%22 width=%2220%22 height=%226%22 fill=%22%23e8d27a%22/%3E%3C/svg%3E" />
@@ -30,15 +32,15 @@
     <div id="hud-tl">
       <div class="rec"><span class="dot"></span>REC <span id="hud-tape">00:00:00</span></div>
       <div id="hud-day">DAY 1</div>
-      <div id="hud-phase"><span id="hud-phase-icon">☀</span> <span id="hud-phase-name">DAY</span> · <span id="hud-clock">10:00</span></div>
+      <div id="hud-phase"><span id="hud-phase-icon"></span> <span id="hud-phase-name">DAY</span> · <span id="hud-clock">10:00</span></div>
       <div class="bar thin"><div id="hud-time-bar"></div></div>
     </div>
 
     <div id="hud-top">
       <div id="compass">
         <div id="compass-ticks"></div>
-        <div id="compass-camp">⛺</div>
-        <div id="compass-safe" style="display:none">⌂</div>
+        <div id="compass-camp"></div>
+        <div id="compass-safe" style="display:none"></div>
         <div id="compass-center"></div>
       </div>
       <div id="compass-dist"></div>
@@ -80,7 +82,7 @@
   <!-- ── screens ─────────────────────────────────────────── -->
   <section id="scr-splash" class="screen active">
     <div class="splash-inner">
-      <div class="warn-icon">⚠</div>
+      <div class="warn-icon" data-icon="warning"></div>
       <p class="splash-line">This game contains flashing lights, darkness and loud sounds.</p>
       <p class="splash-line dim">Headphones recommended.</p>
       <button class="btn big" id="btn-splash">CLICK TO ENTER</button>
@@ -186,12 +188,14 @@
             <tr><td><kbd>E</kbd></td><td>Interact · open drawers · pick up · unlock · sleep</td></tr>
             <tr><td><kbd>L</kbd></td><td>Flashlight on / off</td></tr>
             <tr><td><kbd>R</kbd></td><td>Replace flashlight battery</td></tr>
-            <tr><td><kbd>F</kbd></td><td>Melee attack: punch, or swing your weapon</td></tr>
+            <tr><td><kbd>F</kbd> / <kbd>Click</kbd></td><td>Punch or swing your weapon (clicking punches unless you're holding food, a drink, a rock or a peel)</td></tr>
             <tr><td><kbd>1</kbd>–<kbd>7</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food/drink/weapon)</td></tr>
-            <tr><td><kbd>Left click</kbd></td><td>Use held item (eat, drink, throw, attack, flashlight)</td></tr>
+            <tr><td><kbd>Left click</kbd></td><td>Eat / drink / throw the held item, otherwise punch</td></tr>
             <tr><td><kbd>Right click</kbd></td><td>Drop banana peel at your feet</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
           </table>
+          <h3>Phone &amp; tablet</h3>
+          <p>Touch controls turn on automatically. Left thumb: <b>thumbstick</b> (appears where you touch). Right side: <b>drag to look</b>. <b>Tap anywhere</b> to punch. Buttons: <b data-icon="fist"></b> attack · <b data-icon="use"></b> use item · <b data-icon="jump"></b> jump · <b data-icon="hand"></b> interact (glows when something's in reach) · <b data-icon="sprint"></b> sprint · <b data-icon="flashlight"></b> flashlight · <b data-icon="battery"></b> battery · <b data-icon="drop"></b> drop peel · <b data-icon="pause"></b> pause. Tap hotbar slots to switch items. Play in landscape.</p>
           <h3>Survival</h3>
           <p><b>Sanity</b> slowly drains, faster at night and near monsters. Below 50 your vision greys and you tire faster; below 30 it darkens; below 10 it flickers. At 0 you die.</p>
           <p><b>Hunger</b> drains while you move (3× while sprinting). Below 35 you can't sprint and your sanity drains.</p>
@@ -200,7 +204,7 @@
           <p>Search <b>filing cabinets</b> for batteries (5 min each), food, drinks and <b>Saferoom Keys</b>. Saferooms are sealed, monster-proof rooms; some have a <b>bed</b> to sleep through the night. But at night, listen at the door — if you hear breathing and see a bulge under the blanket, <b>don't sleep</b>. Jump on it instead.</p>
           <p>Throw <b>rocks</b> to lure monsters away or hit them to trip them. Throw or drop <b>banana peels</b> to make chasers slip.</p>
           <h3>Fighting</h3>
-          <p>Press <b>F</b> (or hold slot <b>7</b> and click) to punch. Fists are weak; drawers can hold a <b>lead pipe, crowbar, baseball bat or fire axe</b>, which hit much harder but break after a while. Every hit knocks the monster back and stuns it for a moment. Monsters that are knocked down by a rock or a peel take <b>double damage</b>. Killing one earns <b>+1 ★</b>. Attacking a monster in daylight makes it hostile.</p>
+          <p>Press <b>F</b> or <b>click anywhere</b> to punch. Fists are weak; drawers can hold a <b>lead pipe, crowbar, baseball bat or fire axe</b>, which hit much harder but break after a while. Every hit knocks the monster back and stuns it for a moment. Monsters that are knocked down by a rock or a peel take <b>double damage</b>. Killing one earns <b>+1 ★</b>. Attacking a monster in daylight makes it hostile.</p>
         </div>
       </div>
       <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
@@ -218,6 +222,9 @@
         <label>Music volume <span data-out="musicVolume"></span><input type="range" min="0" max="1" step="0.01" data-set="musicVolume" /></label>
         <label class="row">Graphics quality
           <select data-set="quality"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High (flashlight shadows)</option></select>
+        </label>
+        <label class="row">Touch controls
+          <select data-set="touchControls"><option value="auto">Auto (detect device)</option><option value="on">On</option><option value="off">Off</option></select>
         </label>
         <label class="row check"><input type="checkbox" data-set="headBob" /> Camera tilt &amp; head-bob</label>
         <label class="row check"><input type="checkbox" data-set="invertY" /> Invert mouse Y</label>
@@ -239,10 +246,11 @@
       <div id="test-tools">
         <div class="tt-head">TEST TOOLS</div>
         <div class="tt-grid">
-          <button class="tbtn" data-action="night">☾ Become nighttime <kbd>N</kbd></button>
-          <button class="tbtn" data-action="day">☀ Become daytime <kbd>T</kbd></button>
-          <button class="tbtn" data-action="spawn">☠ Spawn monster <kbd>M</kbd></button>
-          <button class="tbtn" data-action="guide">⌂ Guide to saferoom <kbd>G</kbd></button>
+          <button class="tbtn" data-action="night"><span><span data-icon="moon"></span> Become nighttime</span><kbd>N</kbd></button>
+          <button class="tbtn" data-action="day"><span><span data-icon="sun"></span> Become daytime</span><kbd>T</kbd></button>
+          <button class="tbtn" data-action="spawn"><span><span data-icon="skull"></span> Spawn monster</span><kbd>M</kbd></button>
+          <button class="tbtn" data-action="guide"><span><span data-icon="house"></span> Guide to saferoom</span><kbd>G</kbd></button>
+          <button class="tbtn" data-action="bed"><span><span data-icon="bed"></span> Spawn trapped bed</span><kbd>B</kbd></button>
         </div>
       </div>
     </div>
@@ -287,6 +295,12 @@
       <div class="row-btns"><button class="btn primary" data-action="resume">CONTINUE</button></div>
     </div>
   </section>
+
+  <div id="rotate-hint">
+    <div class="rot-icon" data-icon="rotate"></div>
+    <p>Rotate your device to landscape</p>
+    <button class="btn" onclick="this.parentNode.classList.add('dismissed')">PLAY ANYWAY</button>
+  </div>
 
   <div id="file-warning" class="hidden">
     <h2>Open this through a web server</h2>

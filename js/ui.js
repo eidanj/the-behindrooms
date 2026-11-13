@@ -2,6 +2,7 @@
 
 import { ITEMS, SLOTS, WEAPONS } from './items.js';
 import { STARS_TO_WIN, PLAYER, FLASHLIGHT } from './config.js';
+import { ICON, fillIcons } from './icons.js';
 
 const $ = (s) => document.querySelector(s);
 const C = '#efe4bf', Y = '#e8d27a';
@@ -18,7 +19,7 @@ export const ICONS = {
   rock: svg(`<path d="M7 28 L10 17 L18 10 L29 13 L34 23 L28 31 L14 33 Z"/><path d="M18 10 L20 20 L34 23 M20 20 L14 33" stroke-width="1.4"/>`),
   banana: svg(`<path d="M8 11 C10 27 23 33 34 27 C25 26 16 21 13 9 Z"/><path d="M8 11 l-1 -3" stroke="${Y}"/>`),
   key: svg(`<circle cx="12" cy="20" r="6.5"/><path d="M18.5 20 H35 M29 20 v5 M33 20 v4" stroke="${Y}"/>`),
-  fists: svg(`<path d="M9 18 v-5 a3 3 0 0 1 6 0 v3 M15 15 v-4 a3 3 0 0 1 6 0 v4 M21 15 v-3 a3 3 0 0 1 6 0 v5 M27 17 v-1 a3 3 0 0 1 6 0 v8 c0 6 -4 10 -10 10 h-4 c-6 0 -10 -4 -10 -10 v-6 a3 3 0 0 1 6 0"/>`),
+  fists: svg(`<path d="M8 18a4 4 0 0 1 4-4h14a4 4 0 0 1 4 4v6a8 8 0 0 1-8 8h-6a8 8 0 0 1-8-8z"/><path d="M15 14v6M20 14v6M25 14v6M8 22h6a2.5 2.5 0 0 0 0-5"/>`),
   pipe: svg(`<path d="M9 33 L31 7" stroke-width="4"/><path d="M27 9 l5 5" stroke="${Y}" stroke-width="3"/>`),
   crowbar: svg(`<path d="M8 34 L28 10 q4 -5 0 -6 l-3 1" stroke="#d05050" stroke-width="3"/>`),
   bat: svg(`<path d="M8 34 L12 30" stroke-width="3"/><path d="M12 30 L31 9 a3 3 0 0 0 -3 -3 L10 28 Z" stroke="${Y}"/>`),
@@ -26,6 +27,30 @@ export const ICONS = {
   food: null, drink: null,
 };
 ICONS.food = ICONS.bread; ICONS.drink = ICONS.coffee;
+
+// On touch devices, keyboard/mouse hints are swapped for the on-screen button icons.
+const K = (name) => `<kbd>${ICON[name]}</kbd>`;
+const TOUCH_MAP = [
+  [/<kbd>W<\/kbd> <kbd>A<\/kbd> <kbd>S<\/kbd> <kbd>D<\/kbd>/g, 'the <b>left thumbstick</b>'],
+  [/Move the <b>mouse<\/b>/g, 'Drag the <b>right side of the screen</b>'],
+  [/Hold <kbd>Shift<\/kbd> while walking forward/g, `Tap ${K('sprint')} while walking forward`],
+  [/Press <kbd>Enter<\/kbd> to continue/g, 'Tap here to continue'],
+  [/<kbd>Shift<\/kbd>/g, K('sprint')],
+  [/<kbd>Space<\/kbd>/g, K('jump')],
+  [/<kbd>L<\/kbd>/g, K('flashlight')],
+  [/<kbd>R<\/kbd>/g, K('battery')],
+  [/<kbd>E<\/kbd>/g, K('hand')],
+  [/Press <kbd>F<\/kbd> to throw a punch/g, `Tap anywhere (or ${K('fist')}) to throw a punch`],
+  [/<kbd>F<\/kbd>/g, K('fist')],
+  [/click throw · right-click drop/g, `${K('use')} throw · ${K('drop')} drop`],
+  [/click to throw/g, `${K('use')} to throw`],
+  [/click or /g, 'tap anywhere or '],
+  [/click to punch/g, 'tap anywhere to punch'],
+  [/right-click/g, `tap ${K('drop')}`],
+  [/left-click/g, `tap ${K('use')}`],
+  [/[Pp]ress <kbd>(\d)<\/kbd>/g, 'tap slot <kbd>$1</kbd>'],
+  [/<kbd>(\d)<\/kbd> again/g, 'slot <kbd>$1</kbd> again'],
+];
 
 export class UI {
   constructor(game) {
@@ -47,6 +72,9 @@ export class UI {
     this.fxVig = $('#fx-vig'); this.fxFlick = $('#fx-flick'); this.fxRed = $('#fx-red'); this.fxDim = $('#fx-dim');
     this.lastHot = '';
     this.current = 'scr-splash';
+    fillIcons();
+    document.getElementById('compass-camp').innerHTML = ICON.tent;
+    document.getElementById('compass-safe').innerHTML = ICON.house;
   }
 
   // ── screens ──
@@ -73,8 +101,15 @@ export class UI {
     f.style.opacity = to;
   }
 
+  t(html) {
+    if (!this.game.touchMode || !html) return html;
+    for (const [re, rep] of TOUCH_MAP) html = html.replace(re, rep);
+    return html;
+  }
+
   // ── toasts & prompts ──
   toast(text, kind = '', ms = 3200) {
+    text = this.t(text);
     const el = document.createElement('div');
     el.className = `toast ${kind}`;
     el.innerHTML = text;
@@ -85,6 +120,7 @@ export class UI {
   }
 
   prompt(html, locked = false) {
+    html = this.t(html);
     if (this._lastPrompt === html + locked) return;
     this._lastPrompt = html + locked;
     this.promptEl.innerHTML = html || '';
@@ -134,13 +170,13 @@ export class UI {
     const held = inv.held();
     const cat = SLOTS[inv.slot];
     let name;
-    if (cat === 'flashlight') name = `Flashlight · ${p.flashlightOn ? 'ON' : 'OFF'} · <kbd>L</kbd> toggle · <kbd>R</kbd> new battery (${inv.counts.battery})`;
+    if (cat === 'flashlight') name = `Flashlight · ${p.flashlightOn ? 'ON' : 'OFF'} · <kbd>L</kbd> toggle · <kbd>R</kbd> new battery (${inv.counts.battery}) · click to punch`;
     else if (cat === 'melee') {
       const w = inv.weapon(), d = WEAPONS[w ? w.type : 'fists'];
       name = `${d.name} · ${d.dmg} dmg${w ? ` · ${w.dur} hits left` : ''} · click or <kbd>F</kbd> to ${d.fist ? 'punch' : 'swing'}`;
       if (inv.weapons.length) name += ` · <kbd>7</kbd> again to switch`;
     }
-    else if (!held) name = { food: 'No food', drink: 'No drinks', rock: 'No rocks', banana: 'No banana peels', key: 'No saferoom keys' }[cat];
+    else if (!held) name = { food: 'No food', drink: 'No drinks', rock: 'No rocks', banana: 'No banana peels', key: 'No saferoom keys' }[cat] + ' · click to punch';
     else {
       const d = ITEMS[held];
       name = d.name + (d.desc ? ` <span style="opacity:.6">· ${d.desc}</span>` : '');
@@ -148,10 +184,11 @@ export class UI {
         const kinds = (cat === 'food' ? ['bread', 'granola', 'cookie'] : ['coffee', 'energy', 'almond']).filter((s) => inv.counts[s] > 0).length;
         if (kinds > 1) name += ` · press <kbd>${inv.slot + 1}</kbd> again to switch`;
       }
+      if (held === 'key') name += ' · use it on a locked saferoom door with <kbd>E</kbd> · click to punch';
       if (held === 'rock') name += ' · click to throw';
       if (held === 'banana') name += ' · click throw · right-click drop';
     }
-    this.hotName.innerHTML = name;
+    this.hotName.innerHTML = this.t(name);
   }
 
   // ── compass ──
@@ -200,7 +237,8 @@ export class UI {
   updateHud(g) {
     const p = g.player, cy = g.cycle;
     $('#hud-day').textContent = `DAY ${cy.day}`;
-    $('#hud-phase-icon').textContent = cy.isNight ? '☾' : '☀';
+    const ph = cy.isNight ? 'moon' : 'sun';
+    if (this._phIcon !== ph) { $('#hud-phase-icon').innerHTML = ICON[ph]; this._phIcon = ph; }
     $('#hud-phase-name').textContent = g.tutorial ? 'TUTORIAL' : cy.isNight ? 'NIGHT' : 'DAY';
     $('#hud-clock').textContent = g.tutorial ? '--:--' : cy.clockText();
     $('#hud-time-bar').style.width = `${(1 - cy.progress) * 100}%`;
@@ -218,9 +256,9 @@ export class UI {
     $('#stars-banked').textContent = g.banked;
 
     let fx = '';
-    if (p.boost) fx += `<div>⚡ ${ITEMS[p.boost.item].name} +${Math.round(p.boost.mult * 100)}% speed · ${Math.ceil(p.boost.t)}s</div>`;
+    if (p.boost) fx += `<div>${ICON.bolt} ${ITEMS[p.boost.item].name} +${Math.round(p.boost.mult * 100)}% speed · ${Math.ceil(p.boost.t)}s</div>`;
     if (p.crash) fx += `<div class="crash">↓ Crash ${Math.round(p.crash.mult * 100)}% speed · ${Math.ceil(p.crash.t)}s</div>`;
-    if (p.cookieBonus > 0) fx += `<div style="color:#e8d27a">🍪 +${(p.cookieBonus * 100).toFixed(1)}% speed</div>`;
+    if (p.cookieBonus > 0) fx += `<div style="color:#e8d27a">${ICON.cookie} +${(p.cookieBonus * 100).toFixed(1)}% speed</div>`;
     if (p.energy <= 0) fx += `<div class="crash">Exhausted — stand still to recover</div>`;
     if (fx !== this._lastFx) { $('#effects').innerHTML = fx; this._lastFx = fx; }
 
@@ -357,8 +395,9 @@ export class UI {
     el.classList.remove('hidden');
     el.classList.toggle('done', done);
     el.querySelector('.tut-step').textContent = `TUTORIAL · ${step}/${total}`;
-    el.querySelector('.tut-text').innerHTML = html;
-    el.querySelector('.tut-hint').innerHTML = hint || '';
+    el.querySelector('.tut-skip').innerHTML = this.game.touchMode ? `${ICON.pause} pause` : 'ESC · pause';
+    el.querySelector('.tut-text').innerHTML = this.t(html);
+    el.querySelector('.tut-hint').innerHTML = this.t(hint || '');
   }
   hideTutorial() { $('#tutorial').classList.add('hidden'); this.glow(null); }
   glow(sel) {

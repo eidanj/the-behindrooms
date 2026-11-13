@@ -87,8 +87,9 @@ export class Player {
     // ── move ──
     let f = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0);
     let r = (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0);
+    if (input.moveX || input.moveY) { f = -input.moveY; r = input.moveX; } // touch thumbstick (analog)
     const len = Math.hypot(f, r);
-    if (len > 0) { f /= len; r /= len; }
+    if (len > 1) { f /= len; r /= len; }
     const wantSprint = input.down('ShiftLeft') || input.down('ShiftRight');
     const canSprint = this.hunger >= PLAYER.sprintHungerMin && this.energy > 0 && f > 0.1;
     if (wantSprint && !canSprint && len > 0 && !this._sprintWarned) {
@@ -213,12 +214,8 @@ export class Player {
       if (input.pressed('Digit' + (i + 1)) || input.pressed('Numpad' + (i + 1))) this.select(i);
     }
     if (input.wheel) this.select((this.inv.slot + Math.sign(input.wheel) + NS) % NS);
-    // F = quick melee: switch to fists/weapon and attack
-    if (input.pressed('KeyF')) {
-      const mi = SLOTS.indexOf('melee');
-      if (this.inv.slot !== mi) { this.inv.slot = mi; }
-      g.combat.attack();
-    }
+    // F (or a tap anywhere on touch screens) = quick melee
+    if (input.pressed('KeyF')) this.melee();
     if (input.pressed('KeyL')) this.toggleFlashlight();
     if (input.pressed('KeyR')) this.replaceBattery();
     if (input.pressed('KeyE')) g.interact();
@@ -259,18 +256,26 @@ export class Player {
     g.toast(`Fresh battery in · ${this.inv.counts.battery} spare`, 'good');
   }
 
+  // Switch to fists / the equipped weapon (instantly, so the swing is visible) and attack.
+  melee() {
+    const g = this.game;
+    const mi = SLOTS.indexOf('melee');
+    if (this.inv.slot !== mi) {
+      if (g.hands.busy || g.combat.cooldown > 0) return;
+      this.inv.slot = mi;
+      g.hands.snapTo(this.inv.held());
+    }
+    g.combat.attack();
+  }
+
+  // Left click: eat / drink / throw what you're holding; otherwise punch.
   useHeld() {
     const g = this.game;
     if (this.cooldown > 0 || g.hands.busy) return;
-    const cat = SLOTS[this.inv.slot];
     const held = this.inv.held();
-    if (cat === 'flashlight') { this.toggleFlashlight(); return; }
-    if (cat === 'melee') { g.combat.attack(); return; }
-    if (!held) {
-      g.toast({ food: 'No food — search filing cabinets', drink: 'No drinks — search filing cabinets', rock: 'No rocks — look on the floor', banana: 'No banana peels — look on the floor', key: 'No keys — search filing cabinets' }[cat]);
-      return;
-    }
-    const d = ITEMS[held];
+    const d = held && ITEMS[held];
+    const usable = d && (d.cat === 'food' || d.cat === 'drink' || held === 'rock' || held === 'banana');
+    if (!usable) { this.melee(); return; }
     if (d.cat === 'food' || d.cat === 'drink') {
       g.hands.play(d.cat === 'food' ? 'eat' : 'drink');
       this.cooldown = 1.05;
@@ -293,8 +298,6 @@ export class Player {
           g.tutEvent(held === 'rock' ? 'rock' : 'peel');
         },
       };
-    } else if (held === 'key') {
-      g.toast('Look at a locked saferoom door and press <kbd>E</kbd> to use a key');
     }
   }
 

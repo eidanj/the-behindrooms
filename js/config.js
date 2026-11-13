@@ -117,7 +117,7 @@ export const NIGHT_LIGHTS = {
 
 // Testing helpers. Set testTools to false before you release the game.
 export const DEBUG = {
-  testTools: true,   // Test tools in the pause menu + hotkeys N / T / M / G
+  testTools: true,   // Test tools in the pause menu + hotkeys N / T / M / G / B
 };
 
 export const DEFAULT_SETTINGS = {
@@ -130,4 +130,5 @@ export const DEFAULT_SETTINGS = {
   brightness: 1.0,
   quality: 'medium',
   showFps: false,
+  touchControls: 'auto', // 'auto' (detect phones/tablets), 'on' or 'off'
 };

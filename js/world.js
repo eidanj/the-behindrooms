@@ -641,8 +641,11 @@ export class World {
     const M = this.M;
     const b = Models.bed(M);
     b.group.position.set(p.x, 0, p.z);
+    const sideways = !!p.rot;
+    if (sideways) b.group.rotation.y = Math.PI / 2;
     chunk.props.add(b.group);
-    const box = { minX: p.x - 1.0, maxX: p.x + 1.0, minZ: p.z - 0.5, maxZ: p.z + 0.5, top: 0.57, bottom: 0, on: true, chunk, bed: true };
+    const hx = sideways ? 0.5 : 1.0, hz = sideways ? 1.0 : 0.5;
+    const box = { minX: p.x - hx, maxX: p.x + hx, minZ: p.z - hz, maxZ: p.z + hz, top: 0.57, bottom: 0, on: true, chunk, bed: true };
     chunk.boxes.push(box);
     const bed = {
       kind: 'bed', id: p.id, pos: new THREE.Vector3(p.x, 0.6, p.z), r: 1.0, chunk, model: b, box,
@@ -659,6 +662,32 @@ export class World {
     chunk.inter.push(bed);
     chunk.beds.push(bed);
     this.beds.add(bed);
+    return bed;
+  }
+
+  // Test tool: drop a trapped bed at (x, z). rot = true lays it along z.
+  spawnTestBed(x, z, rot) {
+    const chunk = this.chunks.get(ck(Math.floor(x / CS), Math.floor(z / CS)));
+    if (!chunk) return null;
+    this._testBeds = (this._testBeds || 0) + 1;
+    const bed = this._addBed(chunk, { x, z, rot, id: `test:bed${this._testBeds}` });
+    this._addBox(bed.box);
+    bed.setTrapped(true);
+    return bed;
+  }
+
+  // Is an axis-aligned rectangle free of walls/props and fully inside loaded rooms?
+  rectFree(minX, maxX, minZ, maxZ) {
+    for (const [x, z] of [[minX, minZ], [maxX, minZ], [minX, maxZ], [maxX, maxZ], [(minX + maxX) / 2, (minZ + maxZ) / 2]]) {
+      if (!this.roomAt(x, z)) return false;
+    }
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const list = this.boxesNear(cx, cz, Math.max(maxX - minX, maxZ - minZ));
+    for (const b of list) {
+      if (!b.on) continue;
+      if (maxX > b.minX && minX < b.maxX && maxZ > b.minZ && minZ < b.maxZ) return false;
+    }
+    return true;
   }
 
   _buildCamp(chunk) {

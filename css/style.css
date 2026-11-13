@@ -13,10 +13,12 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 body { font-family: var(--mono); color: var(--paper); user-select: none; -webkit-user-select: none; }
 button { font-family: inherit; }
 .hidden { display: none !important; }
+.ico { width: 1em; height: 1em; display: inline-block; vertical-align: -0.14em; }
+kbd .ico { width: 0.95em; height: 0.95em; }
 
 #app { position: fixed; inset: 0; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -31,8 +33,8 @@ button { font-family: inherit; }
 #fx-scan { background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.0) 0px, rgba(0,0,0,0.0) 2px, rgba(0,0,0,0.12) 3px); opacity: 0.55; }
 @keyframes grain { 0% { background-position: 0 0; } 25% { background-position: -37px 51px; } 50% { background-position: 63px -18px; } 75% { background-position: -12px -74px; } }
 
-#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s; }
-#jumpscare { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: #000; pointer-events: none; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s; z-index: 15; }
+#jumpscare { position: absolute; inset: 0; z-index: 16; display: none; align-items: center; justify-content: center; background: #000; pointer-events: none; }
 #jumpscare canvas { width: min(110vh, 110vw); height: min(110vh, 110vw); }
 #jumpscare.on { display: flex; animation: shake 0.06s infinite; }
 @keyframes shake { 0% { transform: translate(6px, -4px) scale(1.04); } 50% { transform: translate(-7px, 5px) scale(1.08); } 100% { transform: translate(3px, 7px) scale(1.05); } }
@@ -113,12 +115,12 @@ button { font-family: inherit; }
 #hotbar-name { position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%); font-size: 21px; color: var(--paper); white-space: nowrap; max-width: 56vw; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 #fps { position: absolute; bottom: 4px; left: 8px; font-size: 16px; color: var(--dim); }
 
-#title-card { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); font-family: var(--display); font-size: 64px; letter-spacing: 10px; color: var(--yellow); opacity: 0; pointer-events: none; text-shadow: 3px 0 rgba(255,0,60,0.45), -3px 0 rgba(0,220,255,0.45), 0 0 18px rgba(0,0,0,0.9); transition: opacity 1.2s; text-align: center; white-space: nowrap; }
+#title-card { position: absolute; z-index: 6; left: 50%; top: 34%; transform: translate(-50%, -50%); font-family: var(--display); font-size: 64px; letter-spacing: 10px; color: var(--yellow); opacity: 0; pointer-events: none; text-shadow: 3px 0 rgba(255,0,60,0.45), -3px 0 rgba(0,220,255,0.45), 0 0 18px rgba(0,0,0,0.9); transition: opacity 1.2s; text-align: center; white-space: nowrap; }
 #title-card small { display: block; font-family: var(--mono); font-size: 24px; letter-spacing: 4px; color: var(--paper); margin-top: 8px; }
 #title-card.show { opacity: 1; }
 
 /* ── tutorial panel ── */
-#tutorial { position: absolute; left: 22px; top: 150px; width: 380px; padding: 14px 16px 12px; background: rgba(8,7,4,0.72); border: 1px solid var(--faint); border-left: 3px solid var(--yellow); pointer-events: none; }
+#tutorial { position: absolute; z-index: 6; left: 22px; top: 150px; width: 380px; padding: 14px 16px 12px; background: rgba(8,7,4,0.72); border: 1px solid var(--faint); border-left: 3px solid var(--yellow); pointer-events: none; }
 .tut-head { display: flex; justify-content: space-between; font-size: 17px; color: var(--dim); letter-spacing: 1px; }
 .tut-text { font-size: 23px; line-height: 1.15; margin-top: 6px; }
 .tut-hint { font-size: 19px; color: var(--yellow); margin-top: 10px; }
@@ -128,7 +130,7 @@ button { font-family: inherit; }
 @keyframes glow { 50% { outline-color: rgba(232,210,122,0.2); } }
 
 /* ── screens ── */
-.screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; }
+.screen { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 20; }
 .screen.active { display: flex; }
 .screen.dim { background: rgba(0,0,0,0.62); }
 .screen.black { background: rgba(0,0,0,0.92); }
@@ -138,7 +140,7 @@ button { font-family: inherit; }
 
 #scr-splash { background: #000; }
 .splash-inner { text-align: center; max-width: 560px; padding: 20px; }
-.warn-icon { font-size: 54px; color: var(--yellow); }
+.warn-icon { font-size: 60px; color: var(--yellow); line-height: 1; }
 .splash-line { font-size: 26px; margin: 10px 0; }
 .splash-line.dim { color: var(--dim); }
 
@@ -169,6 +171,7 @@ button { font-family: inherit; }
 #test-tools { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--faint); }
 .tt-head { text-align: center; font-size: 16px; letter-spacing: 4px; color: var(--dim); margin-bottom: 8px; }
 .tt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tbtn > span { display: inline-flex; align-items: center; gap: 6px; }
 .tbtn { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(0,0,0,0.35); color: #b8c6ff; border: 1px solid rgba(184,198,255,0.3); font-size: 20px; padding: 6px 12px; cursor: pointer; white-space: nowrap; transition: all 0.12s; }
 .tbtn:hover, .tbtn:focus-visible { border-color: #b8c6ff; background: rgba(30,36,64,0.6); color: #e0e6ff; outline: none; }
 .tbtn kbd { font-size: 16px; color: var(--dim); }
@@ -182,6 +185,7 @@ button { font-family: inherit; }
 
 .panel { position: relative; background: rgba(10,9,6,0.86); border: 1px solid var(--faint); padding: 26px 30px; min-width: 420px; max-width: 90vw; max-height: 90vh; box-shadow: 0 0 60px rgba(0,0,0,0.8); }
 .panel.wide { width: 980px; }
+.panel { overflow-y: auto; }
 .panel.scroll { overflow-y: auto; pointer-events: auto; }
 .panel h2 { font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 5px; margin: 0 0 16px; color: var(--yellow); text-align: center; }
 .panel h3 { font-family: var(--display); font-weight: 400; letter-spacing: 2px; font-size: 22px; color: var(--yellow); margin: 16px 0 4px; }
@@ -239,4 +243,81 @@ kbd { font-family: var(--mono); padding: 0 5px; border: 1px solid var(--dim); bo
   #hud-br { width: 200px; }
   .stat { grid-template-columns: 80px 1fr 36px; font-size: 16px; }
   .slot { width: 52px; height: 52px; }
+}
+
+/* ───────── touch controls ───────── */
+#touch { position: absolute; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none; }
+.t-btn { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(239,228,191,0.45); background: rgba(10,9,6,0.38);
+  color: var(--paper); font-family: var(--mono); font-size: 28px; display: flex; align-items: center; justify-content: center; padding: 0; touch-action: none; backdrop-filter: blur(2px); }
+.t-btn .ico { width: 0.95em; height: 0.95em; }
+.t-btn.big { width: 84px; height: 84px; font-size: 40px; border-color: rgba(255,120,100,0.6); }
+.t-btn.small { width: 50px; height: 50px; font-size: 22px; }
+.t-btn.down { background: rgba(232,210,122,0.35); transform: scale(0.93); }
+.t-btn.on { background: rgba(158,230,255,0.3); border-color: #9ee6ff; color: #9ee6ff; }
+.t-btn.ready { border-color: var(--yellow); color: var(--yellow); box-shadow: 0 0 16px rgba(232,210,122,0.55); animation: pulse 1s ease-in-out infinite; }
+#t-attack { right: 22px; bottom: 26px; }
+#t-use    { right: 122px; bottom: 18px; }
+#t-jump   { right: 30px; bottom: 126px; }
+#t-act    { right: 112px; bottom: 100px; }
+#t-sprint { right: 202px; bottom: 26px; }
+#t-light  { right: 196px; bottom: 96px; }
+#t-batt   { right: 190px; bottom: 160px; }
+#t-drop   { right: 120px; bottom: 178px; }
+#t-pause  { left: 12px; top: 12px; width: 44px; height: 44px; font-size: 16px; border-radius: 10px; }
+#t-joy { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px solid rgba(239,228,191,0.35); background: rgba(0,0,0,0.25); pointer-events: none; }
+#t-joy .knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; background: rgba(239,228,191,0.45); transform: translate(-50%, -50%); }
+
+/* compact HUD when touch controls are on */
+.touch #hud-tl { left: 66px; top: 12px; font-size: 18px; }
+.touch #hud-day { font-size: 22px; }
+.touch .rec { font-size: 16px; }
+.touch #hud-tr { top: 10px; right: 14px; }
+.touch #stars { font-size: 26px; }
+.touch #banked { font-size: 15px; }
+.touch #hud-br { top: 78px; bottom: auto; right: 14px; width: 190px; }
+.touch .stat { grid-template-columns: 74px 1fr 34px; font-size: 14px; margin-top: 2px; }
+.touch .bar { height: 7px; }
+.touch #hotbar { left: 38%; bottom: 8px; gap: 3px; pointer-events: auto; z-index: 5; }
+.touch .slot { width: 44px; height: 44px; }
+.touch .slot svg { width: 28px; height: 28px; }
+.touch .slot .k { font-size: 12px; } .touch .slot .n { font-size: 14px; } .touch .slot .on { font-size: 11px; }
+.touch #hotbar-name { left: 38%; bottom: 56px; font-size: 15px; max-width: 46vw; }
+.touch #compass { width: 240px; }
+.touch #compass-dist { font-size: 15px; }
+.touch #toasts { top: 86px; }
+.touch .toast { font-size: 18px; white-space: normal; max-width: 60vw; text-align: center; }
+.touch #prompt { font-size: 19px; top: calc(50% + 26px); }
+.touch #chase { font-size: 18px; }
+.touch #effects { font-size: 14px; }
+.touch #tutorial { top: 70px; left: 66px; width: 300px; padding: 10px 12px; pointer-events: auto; }
+.touch .tut-text { font-size: 17px; }
+.touch .tut-hint { font-size: 16px; }
+.touch #title-card { font-size: 40px; letter-spacing: 6px; }
+
+#rotate-hint { display: none; position: absolute; inset: 0; z-index: 60; background: #0a0906; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 24px; }
+#rotate-hint .rot-icon { font-size: 64px; line-height: 1; color: var(--yellow); animation: spin 2.4s ease-in-out infinite; }
+@keyframes spin { 50% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) { #rotate-hint { display: flex; } #rotate-hint.dismissed { display: none; } }
+
+/* short screens (phones in landscape) */
+@media (max-height: 520px) {
+  .menu-wrap { padding: 4vh 5vw; }
+  .title { font-size: clamp(40px, 8vw, 84px); }
+  .subtitle { font-size: 19px; margin-bottom: 2vh; }
+  .mbtn { font-size: 26px; }
+  .menu-foot { margin-top: 2vh; font-size: 16px; }
+  .vhs-box { font-size: 22px; }
+  .panel { padding: 14px 18px; min-width: 0; max-height: 94vh; }
+  .panel h2 { font-size: 28px; margin-bottom: 8px; }
+  .panel p, .settings label { font-size: 18px; }
+  .diff-cards { gap: 8px; }
+  .diff-card { padding: 8px 10px; font-size: 16px; }
+  .diff-name { font-size: 24px; }
+  .row-btns { margin-top: 12px; }
+  .btn { font-size: 20px; padding: 6px 14px; }
+  .tbtn { font-size: 16px; padding: 4px 8px; }
+  .tt-grid { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  #test-tools { margin-top: 10px; padding-top: 8px; }
+  .menu-list.center .mbtn { font-size: 24px; }
+  .end-msg { font-size: 22px; }
 }
