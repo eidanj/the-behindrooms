@@ -179,16 +179,44 @@ export class Hands {
       g.add(ring, shaft, t1, t2, tag);
       I.key = g;
     }
+    // ── melee weapons: held upright through the fist, tipped forward ──
+    const weapon = (build) => { const g = new THREE.Group(); build(g); g.rotation.x = -0.95; g.position.set(0, 0.0, -0.02); return g; };
+    const metal = new THREE.MeshPhongMaterial({ color: 0x8a8d90, shininess: 60, specular: 0x444444 });
+    I.pipe = weapon((g) => {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.62, 10), metal); p.position.y = 0.2;
+      const j = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.05, 10), metal); j.position.y = 0.5;
+      g.add(p, j);
+    });
+    I.crowbar = weapon((g) => {
+      const m = new THREE.MeshPhongMaterial({ color: 0x7a1414, shininess: 40 });
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.6, 6), m); b.position.y = 0.2;
+      const h = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.011, 6, 10, Math.PI * 1.2), m); h.position.set(0.05, 0.5, 0); h.rotation.z = -0.3;
+      g.add(b, h);
+    });
+    I.bat = weapon((g) => {
+      const wood = new THREE.MeshPhongMaterial({ color: 0xb98a52, shininess: 30 });
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.016, 0.7, 12), wood); b.position.y = 0.26;
+      const k = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), wood); k.position.y = -0.1;
+      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.017, 0.12, 10), L({ color: 0x1a1a1a })); tape.position.y = -0.02;
+      g.add(b, k, tape);
+    });
+    I.axe = weapon((g) => {
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.66, 8), L({ color: 0xa52a1e })); handle.position.y = 0.22;
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.16), metal); head.position.set(0, 0.5, -0.06);
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.13, 0.05), new THREE.MeshPhongMaterial({ color: 0xd8dadc, shininess: 100 })); blade.position.set(0, 0.5, -0.16);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 4), metal); spike.rotation.x = Math.PI / 2; spike.position.set(0, 0.5, 0.05);
+      g.add(handle, head, blade, spike);
+    });
   }
 
   resize(aspect) { this.camera.aspect = aspect; this.camera.updateProjectionMatrix(); }
 
   play(type) {
-    const dur = { eat: 1.0, drink: 1.0, throw: 0.5, click: 0.16, use: 0.3 }[type] || 0.3;
+    const dur = { eat: 1.0, drink: 1.0, throw: 0.5, click: 0.16, use: 0.3, punch: 0.34, swing: 0.62 }[type] || 0.3;
     this.anim = { type, t: 0, dur };
   }
 
-  get busy() { return !!this.anim && (this.anim.type === 'eat' || this.anim.type === 'drink' || this.anim.type === 'throw'); }
+  get busy() { return !!this.anim && ['eat', 'drink', 'throw', 'punch', 'swing'].includes(this.anim.type); }
 
   update(dt, s) {
     // item swapping
@@ -240,6 +268,17 @@ export class Hands {
         if (k < 0.45) { const e = k / 0.45; pz += 0.1 * e; py += 0.08 * e; rx -= 0.6 * e; }
         else { const e = Math.min(1, (k - 0.45) / 0.25); pz += 0.1 - 0.3 * e; py += 0.08 - 0.05 * e; rx += -0.6 + 1.2 * e; }
         if (k > 0.5 && this.current && this.items[this.current]) this.items[this.current].visible = false;
+      } else if (a.type === 'punch') {
+        // quick jab toward the crosshair
+        const u = k < 0.35 ? k / 0.35 : Math.max(0, 1 - (k - 0.35) / 0.65);
+        const e = u * u * (3 - 2 * u);
+        px += 0.17 * e; py += 0.07 * e; pz -= 0.3 * e;
+        rx -= 0.25 * e; ry -= 0.35 * e;
+      } else if (a.type === 'swing') {
+        // wind up to the left, then a fast arc across the screen
+        if (k < 0.32) { const e = k / 0.32; px -= 0.06 * e; py += 0.1 * e; pz += 0.05 * e; rz += 0.7 * e; rx += 0.25 * e; }
+        else if (k < 0.55) { const e = (k - 0.32) / 0.23; px += -0.06 + 0.34 * e; py += 0.1 - 0.16 * e; pz += 0.05 - 0.2 * e; rz += 0.7 - 1.9 * e; rx += 0.25 - 0.9 * e; }
+        else { const e = 1 - (k - 0.55) / 0.45; px += 0.28 * e; py -= 0.06 * e; pz -= 0.15 * e; rz -= 1.2 * e; rx -= 0.65 * e; }
       } else if (a.type === 'click') {
         rx -= Math.sin(k * Math.PI) * 0.08;
       } else if (a.type === 'use') {

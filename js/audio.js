@@ -523,6 +523,46 @@ export class AudioEngine {
     this.tone(90, t, 0.4, { gain: 0.4, freqEnd: 40, dest: p });
   }
 
+  // ── combat ──
+  swing(heavy) {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, heavy ? 0.3 : 0.16, { gain: heavy ? 0.22 : 0.12, type: 'bandpass', freq: heavy ? 450 : 800, freqEnd: heavy ? 1800 : 2600, q: 1.4, attack: 0.04 });
+  }
+
+  hitFlesh(pos, heavy) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 2, 1);
+    this.noise(t, 0.16, { gain: heavy ? 0.7 : 0.5, type: 'bandpass', freq: 380, q: 0.9, dest: p });
+    this.tone(heavy ? 85 : 110, t, 0.18, { gain: heavy ? 0.5 : 0.35, freqEnd: 40, dest: p });
+    this.noise(t + 0.01, 0.12, { gain: 0.25, type: 'bandpass', freq: 1200, freqEnd: 500, q: 3, dest: p });
+    if (heavy) this.noise(t, 0.05, { gain: 0.3, type: 'highpass', freq: 2500, dest: p });
+  }
+
+  weaponBreak() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, 0.09, { gain: 0.5, type: 'highpass', freq: 2800 });
+    this.tone(1900, t, 0.25, { gain: 0.06, type: 'triangle', freqEnd: 1300 });
+    this.noise(t + 0.25, 0.12, { gain: 0.3, freq: 600 });
+  }
+
+  monsterHurt(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 2.5, 1);
+    this.tone(560 + Math.random() * 120, t, 0.4, { gain: 0.12, type: 'sawtooth', freqEnd: 280, attack: 0.01, filter: 2400, dest: p });
+    this.noise(t, 0.35, { gain: 0.25, type: 'bandpass', freq: 1500, freqEnd: 700, q: 2, dest: p });
+  }
+
+  monsterDeath(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 3, 0.9);
+    for (let i = 0; i < 3; i++) this.tone(520 + i * 70, t, 1.4, { gain: 0.08, type: 'sawtooth', freqEnd: 70 + i * 15, attack: 0.02, filter: 2000, dest: p });
+    this.noise(t, 1.2, { gain: 0.3, type: 'bandpass', freq: 1300, freqEnd: 250, q: 1.2, dest: p });
+    this.noise(t + 0.45, 0.4, { gain: 0.6, freq: 220, dest: p });
+    this.tone(40, t + 0.45, 0.45, { gain: 0.5, dest: p });
+  }
+
   bounce() {
     if (!this._ok()) return;
     this.tone(160, this.now, 0.12, { gain: 0.12, freqEnd: 260 });

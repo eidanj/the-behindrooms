@@ -37,8 +37,9 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 | **E** | Interact: search drawers, pick up, unlock saferooms, sleep, portal |
 | **L** | Flashlight on/off |
 | **R** | Replace flashlight battery |
-| **1–6 / mouse wheel** | Select item. Press 1–6 again to cycle food or drink types |
-| **Left click** | Use held item (eat, drink, throw, toggle flashlight) |
+| **F** | Melee attack: punch, or swing your weapon |
+| **1–7 / mouse wheel** | Select item. Press a number again to cycle food, drink or weapon |
+| **Left click** | Use held item (eat, drink, throw, attack, toggle flashlight) |
 | **Right click** | Drop a banana peel at your feet |
 | **Esc** | Pause |
 
@@ -50,6 +51,7 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 - **Escaping:** break line of sight and survive 20 seconds to escape a chase and earn **+1 ★**.
 - **Saferooms:** locked rooms entities can't enter. Keys come from drawers (8%). 15% have a **bed** that lets you sleep through the night. At night the bed may be **trapped**. Listen for breathing and look for a bulge with a limb sticking out. Sleeping in it kills you. **Jump on it 4 times** (within about 7 seconds of the first hit) to squash the monster for **+1 ★**.
 - **Rocks:** throw to make noise and lure entities, or hit one to trip it. **Banana peels:** throw or drop them, and chasing entities that step on one slip and fall.
+- **Fighting:** press **F** (or slot 7 + click) to punch. Drawers can hold weapons that hit harder but break. Every hit knocks the monster back and stuns it briefly, and monsters already knocked down by a rock or peel take double damage. **Killing a monster gives +1 ★**. Hitting a monster in daylight makes it hostile.
 - **Stars:** walking into camp banks the stars you carry. If you die, carried stars are lost (Easy keeps half).
 
 ### Survival stats
@@ -65,7 +67,7 @@ Three.js is bundled locally in `lib/`, so nothing is fetched from a CDN. The onl
 
 Filing cabinets appear in about 30% of rooms on Normal (44% Easy, 21% Hard).
 
-Drawer contents (Normal): 20% battery · 15% drink · 10% food · 8% saferoom key · 47% empty.
+Drawer contents (Normal): 20% battery · 15% drink · 10% food · 8% saferoom key · 7% weapon · 40% empty.
 
 | Item | Effect |
 |---|---|
@@ -75,6 +77,20 @@ Drawer contents (Normal): 20% battery · 15% drink · 10% food · 8% saferoom ke
 | Coffee (20% of drinks) | +5 Hunger, +2 Energy, +15% speed for 30 s, then a 10 s crash (−10% speed, dimmer vision) |
 | Energy Drink (15% of drinks) | +2–4 Hunger, +4 Energy, +20% speed for 45 s, then a 10 s crash (−15% speed, dimmer vision) |
 | Almond Water (65% of drinks) | +3 Hunger, +1 Energy, +8 Sanity |
+
+### Weapons
+
+Monsters have 95 / 120 / 145 HP on Easy / Normal / Hard. About 7% of drawers (Normal) hold a weapon.
+
+| Weapon | Damage | Hits before breaking | Notes |
+|---|---|---|---|
+| Fists | 10 | ∞ | Always available, fast |
+| Lead Pipe (40%) | 24 | 25 | |
+| Crowbar (30%) | 27 | 30 | |
+| Baseball Bat (22%) | 32 | 20 | Biggest knockback |
+| Fire Axe (8%) | 48 | 14 | Slow but brutal |
+
+Tune these in `WEAPONS` in `js/items.js`.
 
 ### Difficulty
 
@@ -105,6 +121,7 @@ js/geo.js           Geometry merger for walls and floors
 js/ui.js            DOM HUD, hotbar, compass, toasts, screen effects
 js/tutorial.js      Interactive tutorial steps
 js/guide.js         Test tool: arrow trail to the nearest saferoom
+js/combat.js        Melee combat: hit detection, damage, weapon wear, gore particles
 js/input.js         Keyboard and mouse
 ```
 

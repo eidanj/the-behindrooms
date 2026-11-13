@@ -23,7 +23,19 @@ export const ITEMS = {
 export const FOOD_TABLE = [['bread', 60], ['granola', 35], ['cookie', 5]];
 export const DRINK_TABLE = [['coffee', 20], ['energy', 15], ['almond', 65]];
 
-export const SLOTS = ['flashlight', 'food', 'drink', 'rock', 'banana', 'key'];
+// Melee: fists are always available; weapons come from drawers and break after `dur` hits.
+//  dmg = damage per hit (monsters have ~120 HP on Normal), cd = seconds between attacks,
+//  range = reach in m, stagger = how long a hit stuns, kb = knockback in m.
+export const WEAPONS = {
+  fists:   { name: 'Fists',        dmg: 10, cd: 0.5,  range: 1.7, windup: 0.11, stagger: 0.45, kb: 1.5, fist: true },
+  pipe:    { name: 'Lead Pipe',    dmg: 24, cd: 0.62, range: 2.0, windup: 0.2,  stagger: 0.55, kb: 1.9, dur: 25 },
+  crowbar: { name: 'Crowbar',      dmg: 27, cd: 0.6,  range: 2.0, windup: 0.19, stagger: 0.55, kb: 1.9, dur: 30 },
+  bat:     { name: 'Baseball Bat', dmg: 32, cd: 0.72, range: 2.2, windup: 0.22, stagger: 0.7,  kb: 2.6, dur: 20 },
+  axe:     { name: 'Fire Axe',     dmg: 48, cd: 0.95, range: 2.2, windup: 0.3,  stagger: 0.8,  kb: 2.2, dur: 14 },
+};
+export const WEAPON_TABLE = [['pipe', 40], ['crowbar', 30], ['bat', 22], ['axe', 8]];
+
+export const SLOTS = ['flashlight', 'food', 'drink', 'rock', 'banana', 'key', 'melee'];
 export const SUBTYPES = { food: ['bread', 'granola', 'cookie'], drink: ['coffee', 'energy', 'almond'] };
 
 export class Inventory {
@@ -31,6 +43,22 @@ export class Inventory {
     this.counts = { battery: 1, bread: 0, granola: 0, cookie: 0, coffee: 0, energy: 0, almond: 0, rock: 0, banana: 0, key: 0 };
     this.slot = 0;
     this.sub = { food: 'bread', drink: 'almond' };
+    this.weapons = [];   // [{ type, dur }]
+    this.equipped = -1;  // -1 = fists
+  }
+
+  addWeapon(type) {
+    this.weapons.push({ type, dur: WEAPONS[type].dur });
+    if (this.equipped < 0) this.equipped = this.weapons.length - 1;
+  }
+
+  weapon() { return this.equipped >= 0 ? this.weapons[this.equipped] : null; }
+
+  // the equipped weapon broke: fall back to the next weapon, or fists
+  breakWeapon() {
+    if (this.equipped < 0) return;
+    this.weapons.splice(this.equipped, 1);
+    this.equipped = this.weapons.length ? 0 : -1;
   }
 
   add(item, n = 1) {
@@ -51,6 +79,7 @@ export class Inventory {
   }
 
   catCount(cat) {
+    if (cat === 'melee') return this.weapons.length;
     if (SUBTYPES[cat]) return SUBTYPES[cat].reduce((a, s) => a + this.counts[s], 0);
     if (cat === 'flashlight') return 1;
     return this.counts[cat] || 0;
@@ -59,6 +88,7 @@ export class Inventory {
   held() {
     const cat = SLOTS[this.slot];
     if (cat === 'flashlight') return 'flashlight';
+    if (cat === 'melee') return this.equipped >= 0 ? this.weapons[this.equipped].type : 'fists';
     if (SUBTYPES[cat]) {
       if (this.counts[this.sub[cat]] > 0) return this.sub[cat];
       const any = SUBTYPES[cat].find((s) => this.counts[s] > 0);
@@ -70,6 +100,10 @@ export class Inventory {
   select(i) {
     if (i === this.slot) {
       const cat = SLOTS[i];
+      if (cat === 'melee' && this.weapons.length) {
+        this.equipped = this.equipped + 1 >= this.weapons.length ? -1 : this.equipped + 1;
+        return 'cycled';
+      }
       if (SUBTYPES[cat]) {
         const subs = SUBTYPES[cat].filter((s) => this.counts[s] > 0);
         if (subs.length > 1) {

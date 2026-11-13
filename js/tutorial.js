@@ -48,12 +48,17 @@ export class Tutorial {
         check: () => this.ev.peel >= 1,
       },
       {
-        text: 'Your stats are bottom-right.<br><b>Sanity</b> drains over time — faster at night and near monsters. At 0, you die.<br><b>Hunger</b> drains while you move. Below 35 you can\'t sprint.<br><b>Energy</b> drains while you move. Stand still to recover.',
-        info: true,
-        setup: () => { g.setMarker(null); g.ui.glow('#hud-br'); },
+        text: 'You can <b>fight back</b>. Press <kbd>F</kbd> to throw a punch (or press <kbd>7</kbd> and left-click).<br><br>Fists are weak. Drawers can hold a <b>lead pipe, crowbar, bat or fire axe</b>. They hit much harder but break. Every hit knocks a monster back; ones already knocked down take <b>double damage</b>.',
+        setup: () => g.setMarker(null),
+        check: () => this.ev.attack >= 1,
       },
       {
-        text: 'You need <b>30 ★ Stars</b> to escape.<br>Earn one by <b>escaping a chase</b> (break line of sight and survive 20 s) or by <b>squashing a monster</b> hiding in a saferoom bed.<br><br>Carried stars are <b>lost if you die</b>. Walk into camp to <b>bank</b> them.',
+        text: 'Your stats are bottom-right.<br><b>Sanity</b> drains over time — faster at night and near monsters. At 0, you die.<br><b>Hunger</b> drains while you move. Below 35 you can\'t sprint.<br><b>Energy</b> drains while you move. Stand still to recover.',
+        info: true,
+        setup: () => g.ui.glow('#hud-br'),
+      },
+      {
+        text: 'You need <b>30 ★ Stars</b> to escape.<br>Earn one by <b>escaping a chase</b> (break line of sight and survive 20 s), <b>killing a monster</b>, or <b>squashing</b> one hiding in a saferoom bed.<br><br>Carried stars are <b>lost if you die</b>. Walk into camp to <b>bank</b> them.',
         info: true,
         setup: () => g.ui.glow('#hud-tr'),
       },

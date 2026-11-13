@@ -48,6 +48,7 @@ export const HEARING = {
   land: 12,
   drawer: 10,
   peel: 8,
+  fight: 30,
 };
 
 export const ENTITY = {
@@ -73,7 +74,7 @@ export const DIFFICULTIES = {
     jumpscareChance: 0, audioMult: 0.7, breathMult: 0.6, ambientMult: 1.6,
     nightCap: 4, dayCap: 1, nightRoomChance: 0.07, dayRoomChance: 1 / 50,
     entitySpeedMult: 0.92, statDrainMult: 0.75,
-    drawerChance: 0.44, loot: { battery: 26, drink: 20, food: 15, key: 10 },
+    drawerChance: 0.44, loot: { battery: 26, drink: 20, food: 15, key: 10, weapon: 9 }, entityHp: 95,
     floorItemMult: 1.3, sightMult: 0.85, trapChance: 0.3, saferoomChance: 0.45,
     starsKeptOnDeath: 0.5,
   },
@@ -83,7 +84,7 @@ export const DIFFICULTIES = {
     jumpscareChance: 0, audioMult: 1.0, breathMult: 1.0, ambientMult: 1.0,
     nightCap: 7, dayCap: 2, nightRoomChance: 0.12, dayRoomChance: 1 / 50,
     entitySpeedMult: 1.0, statDrainMult: 1.0,
-    drawerChance: 0.30, loot: { battery: 20, drink: 15, food: 10, key: 8 },
+    drawerChance: 0.30, loot: { battery: 20, drink: 15, food: 10, key: 8, weapon: 7 }, entityHp: 120,
     floorItemMult: 1.0, sightMult: 1.0, trapChance: 0.4, saferoomChance: 0.35,
     starsKeptOnDeath: 0,
   },
@@ -93,7 +94,7 @@ export const DIFFICULTIES = {
     jumpscareChance: 0.08, audioMult: 1.15, breathMult: 1.35, ambientMult: 0.8,
     nightCap: 7, dayCap: 2, nightRoomChance: 0.12, dayRoomChance: 1 / 50,
     entitySpeedMult: 1.0, statDrainMult: 1.35,
-    drawerChance: 0.21, loot: { battery: 14, drink: 10, food: 7, key: 6 },
+    drawerChance: 0.21, loot: { battery: 14, drink: 10, food: 7, key: 6, weapon: 5 }, entityHp: 145,
     floorItemMult: 0.85, sightMult: 1.1, trapChance: 0.55, saferoomChance: 0.3,
     starsKeptOnDeath: 0,
   },

@@ -1,6 +1,6 @@
 // DOM-side UI: screens, HUD, hotbar, compass, toasts and screen effects.
 
-import { ITEMS, SLOTS } from './items.js';
+import { ITEMS, SLOTS, WEAPONS } from './items.js';
 import { STARS_TO_WIN, PLAYER, FLASHLIGHT } from './config.js';
 
 const $ = (s) => document.querySelector(s);
@@ -18,6 +18,11 @@ export const ICONS = {
   rock: svg(`<path d="M7 28 L10 17 L18 10 L29 13 L34 23 L28 31 L14 33 Z"/><path d="M18 10 L20 20 L34 23 M20 20 L14 33" stroke-width="1.4"/>`),
   banana: svg(`<path d="M8 11 C10 27 23 33 34 27 C25 26 16 21 13 9 Z"/><path d="M8 11 l-1 -3" stroke="${Y}"/>`),
   key: svg(`<circle cx="12" cy="20" r="6.5"/><path d="M18.5 20 H35 M29 20 v5 M33 20 v4" stroke="${Y}"/>`),
+  fists: svg(`<path d="M9 18 v-5 a3 3 0 0 1 6 0 v3 M15 15 v-4 a3 3 0 0 1 6 0 v4 M21 15 v-3 a3 3 0 0 1 6 0 v5 M27 17 v-1 a3 3 0 0 1 6 0 v8 c0 6 -4 10 -10 10 h-4 c-6 0 -10 -4 -10 -10 v-6 a3 3 0 0 1 6 0"/>`),
+  pipe: svg(`<path d="M9 33 L31 7" stroke-width="4"/><path d="M27 9 l5 5" stroke="${Y}" stroke-width="3"/>`),
+  crowbar: svg(`<path d="M8 34 L28 10 q4 -5 0 -6 l-3 1" stroke="#d05050" stroke-width="3"/>`),
+  bat: svg(`<path d="M8 34 L12 30" stroke-width="3"/><path d="M12 30 L31 9 a3 3 0 0 0 -3 -3 L10 28 Z" stroke="${Y}"/>`),
+  axe: svg(`<path d="M9 34 L29 8" stroke="#d05050" stroke-width="3"/><path d="M22 6 q10 2 12 12 l-8 -2 z" stroke="${Y}"/>`),
   food: null, drink: null,
 };
 ICONS.food = ICONS.bread; ICONS.drink = ICONS.coffee;
@@ -106,7 +111,7 @@ export class UI {
 
   updateHotbar(p) {
     const inv = p.inv;
-    const key = JSON.stringify(inv.counts) + inv.slot + inv.sub.food + inv.sub.drink + p.flashlightOn;
+    const key = JSON.stringify(inv.counts) + JSON.stringify(inv.weapons) + inv.equipped + inv.slot + inv.sub.food + inv.sub.drink + p.flashlightOn;
     if (key === this.lastHot) return;
     this.lastHot = key;
     SLOTS.forEach((cat, i) => {
@@ -114,10 +119,12 @@ export class UI {
       const n = inv.catCount(cat);
       let icon = cat;
       if (cat === 'food' || cat === 'drink') icon = inv.counts[inv.sub[cat]] > 0 ? inv.sub[cat] : cat;
+      if (cat === 'melee') icon = inv.equipped >= 0 ? inv.weapons[inv.equipped].type : 'fists';
       el.querySelector('.ic').innerHTML = ICONS[icon] || '';
-      el.querySelector('.n').textContent = cat === 'flashlight' ? '' : n ? `×${n}` : '';
+      const w = cat === 'melee' ? inv.weapon() : null;
+      el.querySelector('.n').textContent = cat === 'flashlight' ? '' : cat === 'melee' ? (w ? `${w.dur}` : '') : n ? `×${n}` : '';
       el.classList.toggle('sel', inv.slot === i);
-      el.classList.toggle('empty', n === 0);
+      el.classList.toggle('empty', n === 0 && cat !== 'melee');
       let on = el.querySelector('.on');
       if (cat === 'flashlight') {
         if (!on) { on = document.createElement('span'); on.className = 'on'; el.appendChild(on); }
@@ -128,6 +135,11 @@ export class UI {
     const cat = SLOTS[inv.slot];
     let name;
     if (cat === 'flashlight') name = `Flashlight · ${p.flashlightOn ? 'ON' : 'OFF'} · <kbd>L</kbd> toggle · <kbd>R</kbd> new battery (${inv.counts.battery})`;
+    else if (cat === 'melee') {
+      const w = inv.weapon(), d = WEAPONS[w ? w.type : 'fists'];
+      name = `${d.name} · ${d.dmg} dmg${w ? ` · ${w.dur} hits left` : ''} · click or <kbd>F</kbd> to ${d.fist ? 'punch' : 'swing'}`;
+      if (inv.weapons.length) name += ` · <kbd>7</kbd> again to switch`;
+    }
     else if (!held) name = { food: 'No food', drink: 'No drinks', rock: 'No rocks', banana: 'No banana peels', key: 'No saferoom keys' }[cat];
     else {
       const d = ITEMS[held];

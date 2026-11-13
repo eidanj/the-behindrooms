@@ -3,7 +3,7 @@
 
 import * as THREE from '../lib/three.module.min.js';
 import { PLAYER, FLASHLIGHT, ENTITY } from './config.js';
-import { ITEMS, Inventory, SLOTS } from './items.js';
+import { ITEMS, Inventory, SLOTS, WEAPONS } from './items.js';
 import { clamp } from './rng.js';
 
 const tmp = new THREE.Vector3();
@@ -208,10 +208,17 @@ export class Player {
 
   _actions(dt, input, ctx) {
     const g = this.game;
-    for (let i = 0; i < 6; i++) {
+    const NS = SLOTS.length;
+    for (let i = 0; i < NS; i++) {
       if (input.pressed('Digit' + (i + 1)) || input.pressed('Numpad' + (i + 1))) this.select(i);
     }
-    if (input.wheel) this.select((this.inv.slot + Math.sign(input.wheel) + 6) % 6);
+    if (input.wheel) this.select((this.inv.slot + Math.sign(input.wheel) + NS) % NS);
+    // F = quick melee: switch to fists/weapon and attack
+    if (input.pressed('KeyF')) {
+      const mi = SLOTS.indexOf('melee');
+      if (this.inv.slot !== mi) { this.inv.slot = mi; }
+      g.combat.attack();
+    }
     if (input.pressed('KeyL')) this.toggleFlashlight();
     if (input.pressed('KeyR')) this.replaceBattery();
     if (input.pressed('KeyE')) g.interact();
@@ -224,7 +231,10 @@ export class Player {
   select(i) {
     const res = this.inv.select(i);
     if (res) this.game.audio.click();
-    if (res === 'cycled') this.game.toast(`Holding: ${ITEMS[this.inv.held()].name}`);
+    if (res === 'cycled') {
+      const h = this.inv.held();
+      this.game.toast(`Holding: ${(WEAPONS[h] || ITEMS[h]).name}`);
+    }
   }
 
   toggleFlashlight() {
@@ -255,6 +265,7 @@ export class Player {
     const cat = SLOTS[this.inv.slot];
     const held = this.inv.held();
     if (cat === 'flashlight') { this.toggleFlashlight(); return; }
+    if (cat === 'melee') { g.combat.attack(); return; }
     if (!held) {
       g.toast({ food: 'No food — search filing cabinets', drink: 'No drinks — search filing cabinets', rock: 'No rocks — look on the floor', banana: 'No banana peels — look on the floor', key: 'No keys — search filing cabinets' }[cat]);
       return;

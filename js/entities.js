@@ -26,6 +26,15 @@ class Entity {
     const g = mgr.game;
     this.model = Models.creature(g.mats);
     this.root = this.model.root;
+    // per-entity skin material so hits can flash red on just this monster
+    this.skinMat = g.mats.skin.clone();
+    this.root.traverse((o) => { if (o.isMesh && o.material === g.mats.skin) o.material = this.skinMat; });
+    this.maxHp = mgr.diff.entityHp || 120;
+    this.hp = this.maxHp;
+    this.flash = 0;
+    this.stagger = 0; this.staggerMax = 1; this.kbx = 0; this.kbz = 0;
+    this.killed = false; this.killT = 0;
+    this.enraged = false;
     this.root.position.set(x, 0, z);
     this.pos = this.root.position;
     this.yaw = Math.random() * Math.PI * 2;
@@ -63,6 +72,31 @@ class Entity {
     this.noticed = true;
   }
 
+  // returns true if this hit killed it
+  takeHit(dmg, fromX, fromZ, stagger, kb) {
+    if (this.killed) return false;
+    this.hp -= dmg;
+    this.flash = 0.3;
+    this.noticed = true;
+    if (this.hp <= 0) { this.die(); return true; }
+    const dx = this.pos.x - fromX, dz = this.pos.z - fromZ, d = Math.hypot(dx, dz) || 1;
+    const v = kb / (stagger * 0.6);
+    this.kbx = (dx / d) * v; this.kbz = (dz / d) * v;
+    this.stagger = Math.max(this.stagger, stagger); this.staggerMax = this.stagger;
+    this.path = null;
+    return false;
+  }
+
+  die() {
+    this.killed = true;
+    this.killT = 0;
+    this.chasing = false;
+    this.mode = 'dead';
+    this.stagger = 0;
+    this.stun = 0;
+    this.mgr.game.audio.monsterDeath(this.pos);
+  }
+
   trip(seconds) {
     if (this.stun > 0) return;
     this.stun = seconds; this.stunMax = seconds;
@@ -76,9 +110,23 @@ class Entity {
     const dist = Math.hypot(dx, dz);
     this.dist = dist;
 
+    if (this.flash > 0) { this.flash -= dt; this.skinMat.emissive.setRGB(Math.max(0, this.flash) * 2.2, 0, 0); }
+
     // breathing audio (only for nearby entities)
-    if (dist < 30 && !this.breather && !this.dying) this.breather = A.createBreather(this.pos);
-    else if ((dist > 34 || this.dying) && this.breather) { A.releaseBreather(this.breather); this.breather = null; }
+    if (dist < 30 && !this.breather && !this.dying && !this.killed) this.breather = A.createBreather(this.pos);
+    else if ((dist > 34 || this.dying || this.killed) && this.breather) { A.releaseBreather(this.breather); this.breather = null; }
+
+    if (this.killed) {
+      this.killT += dt;
+      const m = this.model, k = Math.min(1, this.killT / 0.45);
+      m.body.rotation.x = -Math.PI / 2 * k * k;
+      m.body.position.y = 0.12 * k;
+      m.arms[0].sh.rotation.x = lerp(m.arms[0].sh.rotation.x, -2.6, Math.min(1, dt * 6));
+      m.arms[1].sh.rotation.x = lerp(m.arms[1].sh.rotation.x, -2.9, Math.min(1, dt * 6));
+      m.head.rotation.z = lerp(m.head.rotation.z, 0.6, Math.min(1, dt * 4));
+      if (this.killT > 4) { this.pos.y -= dt * 0.6; if (this.pos.y < -0.8) this.dead = true; }
+      return;
+    }
     if (this.breather) {
       A.moveBreather(this.breather, this.pos.x, 2.2, this.pos.z);
       this.breather.rate = this.mode === 'chase' ? 1.9 : this.mode === 'search' ? 1.45 : 1;
@@ -101,6 +149,24 @@ class Entity {
       return;
     }
 
+    // staggered by a hit: knocked back, can't attack
+    if (this.stagger > 0) {
+      this.stagger -= dt;
+      const k = Math.max(0, this.stagger / this.staggerMax);
+      tmp.set(this.pos.x + this.kbx * k * dt, 0, this.pos.z + this.kbz * k * dt);
+      W.collide(tmp, 0.33, 0, 0.3, true);
+      if (!W.isForbidden(tmp.x, tmp.z)) { this.pos.x = tmp.x; this.pos.z = tmp.z; }
+      const m = this.model;
+      m.spine.rotation.x = lerp(m.spine.rotation.x, -0.35, Math.min(1, dt * 14));
+      m.head.rotation.x = lerp(m.head.rotation.x, 0.5, Math.min(1, dt * 14));
+      m.arms[0].sh.rotation.x = lerp(m.arms[0].sh.rotation.x, -1.6, Math.min(1, dt * 12));
+      m.arms[1].sh.rotation.x = lerp(m.arms[1].sh.rotation.x, -1.3, Math.min(1, dt * 12));
+      this.yaw = lerpAngle(this.yaw, Math.atan2(P.pos.x - this.pos.x, P.pos.z - this.pos.z), Math.min(1, dt * 6));
+      this.root.rotation.y = this.yaw;
+      this.speed = 0;
+      return;
+    }
+
     this.losTimer -= dt;
     if (this.losTimer <= 0) {
       this.losTimer = 0.12 + Math.random() * 0.08;
@@ -111,8 +177,8 @@ class Entity {
     let target = null, speed = 0, direct = false, face = null;
     const diff = this.mgr.diff;
 
-    if (ctx.night) {
-      const range = (P.flashlightOn ? ENTITY.sightRangeLit : ENTITY.sightRangeDark) * diff.sightMult;
+    if (ctx.night || this.enraged) {
+      const range = (P.flashlightOn || !ctx.night ? ENTITY.sightRangeLit : ENTITY.sightRangeDark) * diff.sightMult;
       const sees = this.los && dist < range && !safe && !P.dead && ctx.huntable;
       const chaseSpeed = PLAYER.walkSpeed * this.chaseMult * diff.entitySpeedMult;
       if (sees) {
@@ -173,7 +239,7 @@ class Entity {
 
     // keep entities from overlapping each other
     for (const o of this.mgr.list) {
-      if (o === this || o.dying) continue;
+      if (o === this || o.dying || o.killed) continue;
       const ox = this.pos.x - o.pos.x, oz = this.pos.z - o.pos.z, d2 = ox * ox + oz * oz;
       if (d2 < 0.64 && d2 > 1e-6) { const d = Math.sqrt(d2), p = (0.8 - d) * 0.5 / d; this.pos.x += ox * p; this.pos.z += oz * p; }
     }
@@ -280,6 +346,7 @@ class Entity {
 
   dispose(scene, audio) {
     scene.remove(this.root);
+    this.skinMat.dispose();
     if (this.breather) { audio.releaseBreather(this.breather); this.breather = null; }
   }
 }
@@ -296,7 +363,7 @@ export class EntityManager {
     this.positions = [];
   }
 
-  get count() { return this.list.filter((e) => !e.dying).length; }
+  get count() { return this.list.filter((e) => !e.dying && !e.killed).length; }
 
   spawn(x, z, day) {
     const e = new Entity(this, x, z, day);
@@ -345,6 +412,7 @@ export class EntityManager {
 
   dawn(ctx) {
     for (const e of this.list) {
+      if (e.killed) continue;
       if (e.chasing) { e.chasing = false; ctx.onEscape(e); }
       if (e.dist < 16 && e.los) e.dying = true;
       else e.dead = true;
@@ -353,7 +421,7 @@ export class EntityManager {
 
   noise(x, z, kind) {
     for (const e of this.list) {
-      if (e.stun > 0 || e.dying) continue;
+      if (e.stun > 0 || e.dying || e.killed) continue;
       const d = Math.hypot(e.pos.x - x, e.pos.z - z);
       let r;
       if (kind === 'walk') r = lerp(HEARING.walk[0], HEARING.walk[1], e.acuity) * FT;
@@ -365,7 +433,7 @@ export class EntityManager {
 
   hitTest(x, y, z, r = 0.45) {
     for (const e of this.list) {
-      if (e.dying || e.stun > 0) continue;
+      if (e.dying || e.stun > 0 || e.killed) continue;
       const d = Math.hypot(e.pos.x - x, e.pos.z - z);
       if (d < r && y > 0.2 && y < 2.6) return e;
     }
@@ -380,7 +448,7 @@ export class EntityManager {
     for (const e of this.list) {
       e.update(dt, ctx);
       if (!e.dead && !W.roomAt(e.pos.x, e.pos.z)) e.dead = true; // chunk unloaded
-      if (!e.dead && !e.dying) {
+      if (!e.dead && !e.dying && !e.killed) {
         this.positions.push(e.pos);
         if (e.dist < this.nearestDist) { this.nearestDist = e.dist; this.nearest = e; }
       }

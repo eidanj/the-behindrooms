@@ -334,9 +334,9 @@ export class World {
     const ox = L.cx * CS, oz = L.cz * CS;
     const d = this.diff;
     const props = [];
-    const lootSum = d.loot.battery + d.loot.drink + d.loot.food + d.loot.key;
-    const loot = [['battery', d.loot.battery], ['drink', d.loot.drink], ['food', d.loot.food], ['key', d.loot.key], [null, Math.max(0, 100 - lootSum)]];
-    const rich = [['battery', 32], ['drink', 30], ['food', 28], ['key', 10]];
+    const lootSum = d.loot.battery + d.loot.drink + d.loot.food + d.loot.key + d.loot.weapon;
+    const loot = [['battery', d.loot.battery], ['drink', d.loot.drink], ['food', d.loot.food], ['key', d.loot.key], ['weapon', d.loot.weapon], [null, Math.max(0, 100 - lootSum)]];
+    const rich = [['battery', 30], ['drink', 27], ['food', 25], ['key', 8], ['weapon', 10]];
     let ci = 0, ii = 0;
     const randPos = (l) => ({
       x: ox + l.x * CELL + 0.7 + rng() * (l.w * CELL - 1.4),

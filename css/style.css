@@ -64,6 +64,9 @@ button { font-family: inherit; }
 #chase.lost { color: #ffb36b; animation: none; }
 @keyframes pulse { 50% { opacity: 0.55; } }
 
+#target { margin-top: 8px; width: 260px; text-align: center; font-size: 20px; color: #ffb3a8; }
+#target .bar { height: 7px; margin-top: 3px; border-color: rgba(255,90,70,0.5); }
+#target .bar > div { background: #d0281a; transition: width 0.15s; }
 #hud-tr { position: absolute; top: 18px; right: 22px; text-align: right; }
 #stars { font-size: 34px; color: var(--yellow); display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
 #stars .star { font-size: 30px; filter: drop-shadow(0 0 6px rgba(232,210,122,0.8)); }

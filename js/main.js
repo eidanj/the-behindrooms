@@ -9,7 +9,8 @@ import { World } from './world.js';
 import { Cycle } from './cycle.js';
 import { AudioEngine } from './audio.js';
 import { EntityManager } from './entities.js';
-import { Throwables, ITEMS, FOOD_TABLE, DRINK_TABLE } from './items.js';
+import { Throwables, ITEMS, FOOD_TABLE, DRINK_TABLE, WEAPONS, WEAPON_TABLE } from './items.js';
+import { Combat } from './combat.js';
 import { Player } from './player.js';
 import { Hands } from './hands.js';
 import { UI } from './ui.js';
@@ -85,6 +86,7 @@ class Game {
     this.marker.visible = false;
     this.scene.add(this.marker);
     this.guide = new Guide(this);
+    this.combat = new Combat(this);
 
     this.state = 'splash';
     this.world = null; this.player = null; this.entities = null; this.throwables = null; this.cycle = null;
@@ -263,6 +265,7 @@ class Game {
     this.world = null; this.entities = null; this.throwables = null; this.tut = null;
     this.setMarker(null);
     if (this.guide) this.guide.stop();
+    if (this.combat) this.combat.clear();
     this.timers = [];
   }
 
@@ -316,7 +319,7 @@ class Game {
     this.banked = 0;
     this.playTime = 0;
     this.gameTime = 0;
-    this.stats = { escapes: 0, squashed: 0, deaths: 0, nights: 0 };
+    this.stats = { escapes: 0, squashed: 0, deaths: 0, nights: 0, kills: 0 };
     this.portalOpen = false;
     this.ui.loading(0.4);
     this.world.loadAllAround(this.player.pos);
@@ -497,6 +500,13 @@ class Game {
     if (Math.random() < this.diff.jumpscareChance) { this.ui.jumpscare(450); this.audio.jumpscare(); }
   }
 
+  onEntityKilled(e) {
+    this.stats.kills++;
+    this.awardStar(`You killed ${e.name}`);
+  }
+
+  landKick(v) { if (this.player) this.player.landKick = Math.max(this.player.landKick, v); }
+
   onEntityTripped(e, type) {
     this.toast(type === 'rock' ? `You tripped ${e.name}!` : `${e.name} slipped on a banana peel!`, 'good');
   }
@@ -580,6 +590,13 @@ class Game {
     let item = type;
     if (type === 'food') item = this.tutorial ? 'bread' : weighted(Math.random, FOOD_TABLE);
     if (type === 'drink') item = weighted(Math.random, DRINK_TABLE);
+    if (type === 'weapon') {
+      item = weighted(Math.random, WEAPON_TABLE);
+      this.player.inv.addWeapon(item);
+      A.pickup();
+      this.toast(`Found a weapon: <b>${WEAPONS[item].name}</b> · press <kbd>7</kbd> or <kbd>F</kbd>`, 'good', 4000);
+      return;
+    }
     this.player.inv.add(item);
     A.pickup();
     this.toast(`Found: <b>${ITEMS[item].name}</b>`, 'good', 3000);
@@ -613,6 +630,7 @@ class Game {
     P.stars = keep;
     P.flashlightOn = false;
     this.guide.stop();
+    this.combat.clear();
     const scare = (opts.entity || opts.bed) && Math.random() < this.diff.jumpscareChance;
     if (scare) { this.ui.jumpscare(800); this.audio.jumpscare(); } else this.audio.death();
     if (opts.bed) { opts.bed.model.trap.visible = true; this.audio.growl(opts.bed.pos); }
@@ -671,7 +689,7 @@ class Game {
     this.ui.fade(1, 1800);
     const t = Math.floor(this.playTime);
     document.getElementById('win-stats').textContent =
-      `${this.diff.name} · Day ${this.cycle.day} · ${Math.floor(t / 60)}m ${t % 60}s\n${this.stats.escapes} chases escaped · ${this.stats.squashed} sleepers squashed · ${this.stats.deaths} deaths`;
+      `${this.diff.name} · Day ${this.cycle.day} · ${Math.floor(t / 60)}m ${t % 60}s\n${this.stats.escapes} chases escaped · ${this.stats.kills} monsters killed · ${this.stats.squashed} sleepers squashed · ${this.stats.deaths} deaths`;
     try { localStorage.setItem(BEST_KEY, JSON.stringify({ day: this.cycle.day, diff: this.diff.id })); } catch (e) { /* ignore */ }
     setTimeout(() => {
       if (document.pointerLockElement) document.exitPointerLock();
@@ -716,6 +734,7 @@ class Game {
 
     E.update(dt, ctx);
     this.throwables.update(dt);
+    this.combat.update(dt);
     W.update(dt, P.pos, this.camera, this.time);
     W.updateLights(this.time, f, E.positions, P.pos);
     if (W.portal) {

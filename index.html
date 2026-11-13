@@ -43,6 +43,7 @@
       </div>
       <div id="compass-dist"></div>
       <div id="chase" class="hidden"></div>
+      <div id="target" class="hidden"><span class="tn"></span><div class="bar"><div></div></div></div>
     </div>
 
     <div id="hud-tr">
@@ -166,7 +167,7 @@
         <div>
           <h3>Goal</h3>
           <p>You've noclipped into an endless office maze. Collect <b>30 ★ Stars</b>, bring them back to the <b>camp</b> where you started, and step through the <b>Escape Portal</b>.</p>
-          <p>Earn a star by <b>escaping a chase</b> (break line-of-sight with a monster and survive 20 seconds) or by <b>squashing a monster</b> hiding in a saferoom bed. Stars you carry are lost if you die. Walk into camp to bank them safely.</p>
+          <p>Earn a star by <b>escaping a chase</b> (break line-of-sight with a monster and survive 20 seconds), by <b>killing a monster</b>, or by <b>squashing a monster</b> hiding in a saferoom bed. Stars you carry are lost if you die. Walk into camp to bank them safely.</p>
           <h3>Day &amp; Night</h3>
           <p><b>Day</b> lasts 10 minutes. The lights are on, the music is calm, and monsters are rare — they just follow you slowly.</p>
           <p>When the lights start to <b>flicker violently</b>, night is coming. The power dies, only 1–3 dim lights per room stay on, and monsters roam. Night lasts 6 minutes.</p>
@@ -185,8 +186,9 @@
             <tr><td><kbd>E</kbd></td><td>Interact · open drawers · pick up · unlock · sleep</td></tr>
             <tr><td><kbd>L</kbd></td><td>Flashlight on / off</td></tr>
             <tr><td><kbd>R</kbd></td><td>Replace flashlight battery</td></tr>
-            <tr><td><kbd>1</kbd>–<kbd>6</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food/drink type)</td></tr>
-            <tr><td><kbd>Left click</kbd></td><td>Use held item (eat, drink, throw, flashlight)</td></tr>
+            <tr><td><kbd>F</kbd></td><td>Melee attack: punch, or swing your weapon</td></tr>
+            <tr><td><kbd>1</kbd>–<kbd>7</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food/drink/weapon)</td></tr>
+            <tr><td><kbd>Left click</kbd></td><td>Use held item (eat, drink, throw, attack, flashlight)</td></tr>
             <tr><td><kbd>Right click</kbd></td><td>Drop banana peel at your feet</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
           </table>
@@ -197,6 +199,8 @@
           <h3>Loot</h3>
           <p>Search <b>filing cabinets</b> for batteries (5 min each), food, drinks and <b>Saferoom Keys</b>. Saferooms are sealed, monster-proof rooms; some have a <b>bed</b> to sleep through the night. But at night, listen at the door — if you hear breathing and see a bulge under the blanket, <b>don't sleep</b>. Jump on it instead.</p>
           <p>Throw <b>rocks</b> to lure monsters away or hit them to trip them. Throw or drop <b>banana peels</b> to make chasers slip.</p>
+          <h3>Fighting</h3>
+          <p>Press <b>F</b> (or hold slot <b>7</b> and click) to punch. Fists are weak; drawers can hold a <b>lead pipe, crowbar, baseball bat or fire axe</b>, which hit much harder but break after a while. Every hit knocks the monster back and stuns it for a moment. Monsters that are knocked down by a rock or a peel take <b>double damage</b>. Killing one earns <b>+1 ★</b>. Attacking a monster in daylight makes it hostile.</p>
         </div>
       </div>
       <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
