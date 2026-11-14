@@ -22,6 +22,13 @@ export const ICON = {
   warning: S('<path d="M12 3.5L2 20.5h20zM12 10v5M12 17.8v.4"/>'),
   bolt: S('<path d="M13.5 2.5L5 14h6.5l-1 7.5L19 10h-6.5z"/>'),
   cookie: S('<circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="14.6" cy="9.8" r="1" fill="currentColor"/><circle cx="10.6" cy="15" r="1" fill="currentColor"/><circle cx="15.2" cy="14.6" r="1" fill="currentColor"/>'),
+  crouch: S('<circle cx="12" cy="5" r="2"/><path d="M12 7.5v5l-4 2.5 1.5 5M12 12.5l4 1.5 1 6M8 10l4-1 4 1.5"/>'),
+  wrench: S('<path d="M14.5 6.5a4 4 0 0 0-5 5L3.5 17.5a2 2 0 0 0 3 3l6-6a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/>'),
+  chest: S('<rect x="3" y="9" width="18" height="11" rx="1"/><path d="M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3M3 13h18M11 12h2v3h-2z"/>'),
+  heart: S('<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>'),
+  vent: S('<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M6 9h12M6 12h12M6 15h12"/>'),
+  flask: S('<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3M7.5 14h9"/>'),
+  gift: S('<rect x="3.5" y="9" width="17" height="11"/><path d="M3 9h18M12 9v11M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"/>'),
   rotate: S('<path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4.5h4.5"/>'),
 };
 

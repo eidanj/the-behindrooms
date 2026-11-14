@@ -54,6 +54,7 @@
     </div>
 
     <div id="crosshair"></div>
+    <div id="cooldown" class="hidden"><div></div></div>
     <div id="prompt"></div>
     <div id="toasts"></div>
 
@@ -62,12 +63,21 @@
       <div class="stat" id="st-hunger"><label>HUNGER</label><div class="bar"><div></div></div><span>100</span></div>
       <div class="stat" id="st-energy"><label>ENERGY</label><div class="bar"><div></div></div><span>20</span></div>
       <div class="stat" id="st-battery"><label>BATTERY</label><div class="bar"><div></div></div><span>100%</span></div>
+      <div id="mats"></div>
       <div id="effects"></div>
     </div>
 
+    <div id="vitals">
+      <div id="meters">
+        <div class="meter hidden" id="m-crouch"><span data-icon="crouch"></span><div class="bar"><div></div></div></div>
+        <div class="meter hidden" id="m-vent"><span data-icon="vent"></span><label>VENT</label><div class="bar"><div></div></div><small></small></div>
+      </div>
+      <div id="health"><span class="hi" data-icon="heart"></span><div class="bar"><div class="hb-lag"></div><div class="hb"></div></div><span class="hv">100</span></div>
+    </div>
     <div id="hotbar"></div>
-    <div id="fps" class="hidden"></div>
+    <div id="hurt" class="fx"></div>
   </div>
+  <div id="fps" class="hidden"></div>
 
   <div id="tutorial" class="hidden">
     <div class="tut-head"><span class="tut-step"></span><span class="tut-skip">ESC · pause</span></div>
@@ -121,41 +131,43 @@
   </section>
 
   <section id="scr-diff" class="screen menu-bg">
-    <div class="panel wide">
+    <div class="panel wide diff-panel">
       <h2>SELECT DIFFICULTY</h2>
-      <div class="diff-cards">
-        <button class="diff-card" data-diff="easy">
-          <div class="diff-name">EASY</div>
-          <ul>
-            <li>No jumpscares, quieter audio</li>
-            <li>Brighter nights</li>
-            <li>Fewer entities, 8% slower</li>
-            <li>More drawers, batteries &amp; food</li>
-            <li>Slower stat drain</li>
-            <li>Keep half your carried ★ on death</li>
-          </ul>
-        </button>
-        <button class="diff-card selected" data-diff="normal">
-          <div class="diff-name">NORMAL</div>
-          <ul>
-            <li>The standard experience</li>
-            <li>No jumpscares</li>
-            <li>Normal audio &amp; brightness</li>
-            <li>Normal loot &amp; stat drain</li>
-          </ul>
-        </button>
-        <button class="diff-card" data-diff="hard">
-          <div class="diff-name">HARD</div>
-          <ul>
-            <li>Intense, scary audio</li>
-            <li>8% chance of rare jumpscares</li>
-            <li>Faster stat drain</li>
-            <li>Scarcer drawers, batteries, food &amp; drinks</li>
-            <li>Darker nights</li>
-          </ul>
-        </button>
+      <div class="diff-scroll">
+        <div class="diff-cards">
+          <button class="diff-card" data-diff="easy">
+            <div class="diff-name">EASY</div>
+            <ul>
+              <li>No jumpscares, quieter audio</li>
+              <li>Monsters hit 30% softer</li>
+              <li>Fewer monsters, 8% slower</li>
+              <li>More loot &amp; vents</li>
+              <li>Slower stat drain</li>
+              <li>Keep half your carried ★ on death</li>
+            </ul>
+          </button>
+          <button class="diff-card selected" data-diff="normal">
+            <div class="diff-name">NORMAL</div>
+            <ul>
+              <li>The standard experience</li>
+              <li>No jumpscares</li>
+              <li>Dark nights</li>
+              <li>Normal loot &amp; stat drain</li>
+            </ul>
+          </button>
+          <button class="diff-card" data-diff="hard">
+            <div class="diff-name">HARD</div>
+            <ul>
+              <li>Intense, scary audio</li>
+              <li>8% chance of rare jumpscares</li>
+              <li>Monsters hit 25% harder</li>
+              <li>Scarcer loot, faster stat drain</li>
+              <li>Pitch-black nights</li>
+            </ul>
+          </button>
+        </div>
       </div>
-      <div class="row-btns">
+      <div class="row-btns sticky">
         <button class="btn" data-action="back">BACK</button>
         <button class="btn primary" data-action="start">ENTER THE BEHINDROOMS</button>
       </div>
@@ -169,42 +181,41 @@
         <div>
           <h3>Goal</h3>
           <p>You've noclipped into an endless office maze. Collect <b>30 ★ Stars</b>, bring them back to the <b>camp</b> where you started, and step through the <b>Escape Portal</b>.</p>
-          <p>Earn a star by <b>escaping a chase</b> (break line-of-sight with a monster and survive 20 seconds), by <b>killing a monster</b>, or by <b>squashing a monster</b> hiding in a saferoom bed. Stars you carry are lost if you die. Walk into camp to bank them safely.</p>
+          <p>Earn a star by <b>escaping a chase</b> (break line-of-sight and survive 20 seconds), by <b>killing a monster</b>, or by <b>squashing a monster</b> hiding in a saferoom bed. Carried stars are lost if you die. Walk into camp to bank them.</p>
           <h3>Day &amp; Night</h3>
-          <p><b>Day</b> lasts 10 minutes. The lights are on, the music is calm, and monsters are rare — they just follow you slowly.</p>
-          <p>When the lights start to <b>flicker violently</b>, night is coming. The power dies, only 1–3 dim lights per room stay on, and monsters roam. Night lasts 6 minutes.</p>
+          <p><b>Day</b> lasts 10 minutes. The lights are on and monsters are rare — they just follow you slowly. When the lights <b>flicker violently</b>, night is coming: the power dies, most rooms go black and monsters roam for 6 minutes.</p>
           <h3>Monsters</h3>
-          <p>They're <b>blind</b> and hunt by <b>sound</b>. Walking can be heard from 5–20 ft, sprinting from 10–35 ft. At night, if one gets <b>line of sight</b>, it sprints at you slightly faster than you walk — so sprint away and break line of sight.</p>
-          <p>Nearby monsters make lights and your flashlight flicker, drain your sanity and tint your vision red. Listen for heavy breathing.</p>
-          <p>Your flashlight makes you easier to spot at night. Press <b>L</b> to turn it off.</p>
+          <p>They're <b>blind</b> and hunt by <b>sound</b>. If one gets <b>line of sight</b> at night it chases you — your flashlight cuts out for a second when it spots you. Monsters <b>hit you</b> rather than killing you outright, so you can fight back or run.</p>
+          <p><b>The Hollow</b> — tall and eyeless. <b>The Crawler</b> — low, fast, fragile. <b>The Brute</b> — slow, but hits like a truck. <b>The Hound</b> — very fast. <b>The Smiler</b> — night only; your flashlight beam burns it. <b>The Mannequin</b> — can't move while you look at it.</p>
+          <h3>The map</h3>
+          <p>Some rooms are <b>sunken</b> (find the ramp out), some have <b>holes in the floor</b> (ladders lead out), some are <b>flooded</b>. Far from camp you may find the <b>Poolrooms</b>. Falling hurts.</p>
+          <p><b>Vents</b> run above the ceiling. Climb a <b>ladder</b> into one to hide — monsters can't see or hear you up there. Crawling wears the vent down (faster if you hurry); stay still and it slowly recovers. It collapses at 0 or after 2 minutes, and monsters sometimes claw at it. Find an exit grate and press <kbd>E</kbd> to drop out.</p>
         </div>
         <div>
           <h3>Controls</h3>
           <table class="keys">
             <tr><td><kbd>W A S D</kbd></td><td>Move</td></tr>
             <tr><td><kbd>Mouse</kbd></td><td>Look</td></tr>
-            <tr><td><kbd>Shift</kbd></td><td>Sprint (+20% speed, needs Hunger ≥ 35)</td></tr>
-            <tr><td><kbd>Space</kbd></td><td>Jump</td></tr>
-            <tr><td><kbd>E</kbd></td><td>Interact · open drawers · pick up · unlock · sleep</td></tr>
-            <tr><td><kbd>L</kbd></td><td>Flashlight on / off</td></tr>
+            <tr><td><kbd>Shift</kbd></td><td>Sprint (needs Hunger ≥ 35)</td></tr>
+            <tr><td><kbd>C</kbd></td><td>Crouch — monsters can't hear you. Lasts 10 s, then needs 20 s to recover</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>Jump · climb ladders</td></tr>
+            <tr><td><kbd>E</kbd></td><td>Interact · open drawers · pick up · unlock · sleep · climb into vents</td></tr>
+            <tr><td><kbd>L</kbd> / <kbd>Click</kbd></td><td>Flashlight on / off (click while holding it)</td></tr>
             <tr><td><kbd>R</kbd></td><td>Replace flashlight battery</td></tr>
-            <tr><td><kbd>F</kbd> / <kbd>Click</kbd></td><td>Punch or swing your weapon (clicking punches unless you're holding food, a drink, a rock or a peel)</td></tr>
-            <tr><td><kbd>1</kbd>–<kbd>7</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food/drink/weapon)</td></tr>
-            <tr><td><kbd>Left click</kbd></td><td>Eat / drink / throw the held item, otherwise punch</td></tr>
-            <tr><td><kbd>Right click</kbd></td><td>Drop banana peel at your feet</td></tr>
+            <tr><td><kbd>F</kbd> / <kbd>Click</kbd></td><td>Punch or swing your weapon. The bar under the crosshair shows when you can hit again</td></tr>
+            <tr><td><kbd>1</kbd>–<kbd>8</kbd> / <kbd>Wheel</kbd></td><td>Select item (press again to cycle food, drinks, throwables, meds or weapons)</td></tr>
+            <tr><td><kbd>Left click</kbd></td><td>Eat / drink / heal / throw the held item</td></tr>
+            <tr><td><kbd>Right click</kbd></td><td>Drop a banana peel at your feet</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Pause</td></tr>
           </table>
-          <h3>Phone &amp; tablet</h3>
-          <p>Touch controls turn on automatically. Left thumb: <b>thumbstick</b> (appears where you touch). Right side: <b>drag to look</b>. <b>Tap anywhere</b> to punch. Buttons: <b data-icon="fist"></b> attack · <b data-icon="use"></b> use item · <b data-icon="jump"></b> jump · <b data-icon="hand"></b> interact (glows when something's in reach) · <b data-icon="sprint"></b> sprint · <b data-icon="flashlight"></b> flashlight · <b data-icon="battery"></b> battery · <b data-icon="drop"></b> drop peel · <b data-icon="pause"></b> pause. Tap hotbar slots to switch items. Play in landscape.</p>
           <h3>Survival</h3>
-          <p><b>Sanity</b> slowly drains, faster at night and near monsters. Below 50 your vision greys and you tire faster; below 30 it darkens; below 10 it flickers. At 0 you die.</p>
-          <p><b>Hunger</b> drains while you move (3× while sprinting). Below 35 you can't sprint and your sanity drains.</p>
-          <p><b>Energy</b> drains while moving. At 0 you're exhausted and slow. Stand still to slowly recover.</p>
-          <h3>Loot</h3>
-          <p>Search <b>filing cabinets</b> for batteries (5 min each), food, drinks and <b>Saferoom Keys</b>. Saferooms are sealed, monster-proof rooms; some have a <b>bed</b> to sleep through the night. But at night, listen at the door — if you hear breathing and see a bulge under the blanket, <b>don't sleep</b>. Jump on it instead.</p>
-          <p>Throw <b>rocks</b> to lure monsters away or hit them to trip them. Throw or drop <b>banana peels</b> to make chasers slip.</p>
-          <h3>Fighting</h3>
-          <p>Press <b>F</b> or <b>click anywhere</b> to punch. Fists are weak; drawers can hold a <b>lead pipe, crowbar, baseball bat or fire axe</b>, which hit much harder but break after a while. Every hit knocks the monster back and stuns it for a moment. Monsters that are knocked down by a rock or a peel take <b>double damage</b>. Killing one earns <b>+1 ★</b>. Attacking a monster in daylight makes it hostile.</p>
+          <p><b>Health</b> (above your hotbar) drops when monsters hit you or you fall. It slowly comes back a while after you were last hurt — much faster at camp. <b>Bandages</b> and <b>first aid kits</b> heal you.</p>
+          <p><b>Sanity</b> drains, faster at night and near monsters; at 0 you die. <b>Hunger</b> drains while you move. <b>Energy</b> drains while moving; stand still to recover.</p>
+          <h3>Loot &amp; crafting</h3>
+          <p>Every drawer of a cabinet can be searched on its own — look at the one you want. They hold batteries, food, drinks, keys, weapons, meds and <b>materials</b> (wood, metal, cloth, tape). Bring materials to the <b>crafting table</b> at camp to make weapons, bandages, batteries, keys and noisemakers. Store spare food and batteries in the <b>chest</b> at camp — it keeps them when you die.</p>
+          <p>Eat a <b>banana</b> and you keep the <b>peel</b> — throw or drop it so chasers slip. Throw <b>rocks</b> or a <b>noisemaker</b> to lure monsters away.</p>
+          <h3>Phone &amp; tablet</h3>
+          <p>Left thumb: <b>thumbstick</b>. Right side: <b>drag to look</b>. <b>Tap anywhere</b> to punch. Buttons: <b data-icon="fist"></b> attack · <b data-icon="use"></b> use · <b data-icon="jump"></b> jump · <b data-icon="hand"></b> interact · <b data-icon="sprint"></b> sprint · <b data-icon="crouch"></b> crouch · <b data-icon="flashlight"></b> light · <b data-icon="battery"></b> battery · <b data-icon="drop"></b> drop peel · <b data-icon="pause"></b> pause. Tap hotbar slots to switch items.</p>
         </div>
       </div>
       <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
@@ -215,19 +226,45 @@
     <div class="panel">
       <h2>SETTINGS</h2>
       <div class="settings">
-        <label>Mouse sensitivity <span data-out="sensitivity"></span><input type="range" min="0.2" max="3" step="0.05" data-set="sensitivity" /></label>
+        <label>Mouse / look sensitivity <span data-out="sensitivity"></span><input type="range" min="0.2" max="3" step="0.05" data-set="sensitivity" /></label>
         <label>Field of view <span data-out="fov"></span><input type="range" min="60" max="100" step="1" data-set="fov" /></label>
         <label>Brightness <span data-out="brightness"></span><input type="range" min="0.6" max="1.8" step="0.05" data-set="brightness" /></label>
         <label>Master volume <span data-out="masterVolume"></span><input type="range" min="0" max="1" step="0.01" data-set="masterVolume" /></label>
         <label>Music volume <span data-out="musicVolume"></span><input type="range" min="0" max="1" step="0.01" data-set="musicVolume" /></label>
-        <label class="row">Graphics quality
-          <select data-set="quality"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High (flashlight shadows)</option></select>
-        </label>
         <label class="row">Touch controls
           <select data-set="touchControls"><option value="auto">Auto (detect device)</option><option value="on">On</option><option value="off">Off</option></select>
         </label>
         <label class="row check"><input type="checkbox" data-set="headBob" /> Camera tilt &amp; head-bob</label>
         <label class="row check"><input type="checkbox" data-set="invertY" /> Invert mouse Y</label>
+        <label class="row check"><input type="checkbox" data-set="crouchToggle" /> Press <kbd>C</kbd> to toggle crouch (instead of holding it)</label>
+        <label class="row check"><input type="checkbox" data-set="showFps" /> Show FPS counter</label>
+      </div>
+      <div class="row-btns">
+        <button class="btn" data-action="back">BACK</button>
+        <button class="btn primary" data-action="graphics">GRAPHICS…</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-graphics" class="screen menu-bg">
+    <div class="panel">
+      <h2>GRAPHICS</h2>
+      <div class="settings">
+        <label class="row">Preset
+          <select data-set="gfxPreset"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High</option><option value="ultra">Ultra</option><option value="custom">Custom</option></select>
+        </label>
+        <label>Render resolution <span data-out="renderScale"></span><input type="range" min="0.5" max="1.5" step="0.05" data-set="renderScale" /></label>
+        <label>Max pixel density <span data-out="maxDPR"></span><input type="range" min="1" max="3" step="0.25" data-set="maxDPR" /></label>
+        <label>Lights at once <span data-out="maxLights"></span><input type="range" min="3" max="16" step="1" data-set="maxLights" /></label>
+        <label>Light range <span data-out="lightRange"></span><input type="range" min="20" max="80" step="2" data-set="lightRange" /></label>
+        <label>View distance <span data-out="viewDist"></span><input type="range" min="1" max="3" step="1" data-set="viewDist" /></label>
+        <label>Day fog distance <span data-out="fogDay"></span><input type="range" min="30" max="110" step="2" data-set="fogDay" /></label>
+        <label>Night fog distance <span data-out="fogNight"></span><input type="range" min="14" max="50" step="1" data-set="fogNight" /></label>
+        <label class="row">Texture filtering
+          <select data-set="aniso"><option value="1">Off</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option></select>
+        </label>
+        <label class="row check"><input type="checkbox" data-set="shadows" /> Flashlight shadows</label>
+        <label class="row check"><input type="checkbox" data-set="antialias" /> Anti-aliasing <small class="dim">(applies after reload)</small></label>
         <label class="row check"><input type="checkbox" data-set="showFps" /> Show FPS counter</label>
       </div>
       <div class="row-btns"><button class="btn" data-action="back">BACK</button></div>
@@ -241,17 +278,65 @@
         <button class="mbtn" data-action="resume"><span class="caret">▶</span>RESUME</button>
         <button class="mbtn" data-action="settings"><span class="caret">▶</span>SETTINGS</button>
         <button class="mbtn" data-action="howto"><span class="caret">▶</span>HOW TO PLAY</button>
+        <button class="mbtn" id="btn-testing" data-action="testing"><span class="caret">▶</span>TESTING</button>
         <button class="mbtn" data-action="quit"><span class="caret">▶</span>QUIT TO MENU</button>
       </nav>
-      <div id="test-tools">
-        <div class="tt-head">TEST TOOLS</div>
-        <div class="tt-grid">
-          <button class="tbtn" data-action="night"><span><span data-icon="moon"></span> Become nighttime</span><kbd>N</kbd></button>
-          <button class="tbtn" data-action="day"><span><span data-icon="sun"></span> Become daytime</span><kbd>T</kbd></button>
-          <button class="tbtn" data-action="spawn"><span><span data-icon="skull"></span> Spawn monster</span><kbd>M</kbd></button>
-          <button class="tbtn" data-action="guide"><span><span data-icon="house"></span> Guide to saferoom</span><kbd>G</kbd></button>
-          <button class="tbtn" data-action="bed"><span><span data-icon="bed"></span> Spawn trapped bed</span><kbd>B</kbd></button>
+    </div>
+  </section>
+
+  <section id="scr-test" class="screen dim">
+    <div class="panel">
+      <h2>TESTING</h2>
+      <div class="tt-grid">
+        <button class="tbtn" data-action="night"><span><span data-icon="moon"></span> Become nighttime</span><kbd>N</kbd></button>
+        <button class="tbtn" data-action="day"><span><span data-icon="sun"></span> Become daytime</span><kbd>T</kbd></button>
+        <div class="tt-combo">
+          <select id="tt-entity"></select>
+          <button class="tbtn" data-action="spawn"><span><span data-icon="skull"></span> Spawn entity</span><kbd>M</kbd></button>
         </div>
+        <div class="tt-combo">
+          <select id="tt-scare"></select>
+          <button class="tbtn" data-action="scare"><span><span data-icon="warning"></span> Spawn jumpscare</span><kbd>J</kbd></button>
+        </div>
+        <button class="tbtn" data-action="bed"><span><span data-icon="bed"></span> Spawn trapped bed</span><kbd>B</kbd></button>
+        <button class="tbtn" data-action="guide"><span><span data-icon="house"></span> Guide to saferoom</span><kbd>G</kbd></button>
+        <div class="tt-combo">
+          <select id="tt-room">
+            <option value="pit">Room with holes</option><option value="sunken">Sunken room (ramp)</option><option value="xmas">Christmas room</option>
+            <option value="pool">Poolrooms</option><option value="flooded">Flooded room</option><option value="cubicle">Cubicles</option><option value="pillars">Pillar hall</option><option value="vent">Nearest vent ladder</option>
+          </select>
+          <button class="tbtn" data-action="goto"><span><span data-icon="tent"></span> Teleport</span></button>
+        </div>
+        <button class="tbtn" data-action="kit"><span><span data-icon="wrench"></span> Give test kit</span><kbd>K</kbd></button>
+        <button class="tbtn" data-action="heal"><span><span data-icon="heart"></span> Heal + refill stats</span><kbd>H</kbd></button>
+      </div>
+      <div class="row-btns">
+        <button class="btn" data-action="back">BACK</button>
+        <button class="btn primary" data-action="resume">RESUME</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-craft" class="screen dim">
+    <div class="panel wide">
+      <h2><span data-icon="wrench"></span> CRAFTING TABLE</h2>
+      <div class="craft-mats" id="craft-mats"></div>
+      <div class="craft-list" id="craft-list"></div>
+      <div class="row-btns"><button class="btn primary" data-action="closeui">DONE</button></div>
+    </div>
+  </section>
+
+  <section id="scr-chest" class="screen dim">
+    <div class="panel wide">
+      <h2><span data-icon="chest"></span> CAMP CHEST</h2>
+      <p class="center-text dim small">Stored items stay here even if you die.</p>
+      <div class="chest-cols">
+        <div><h3>CARRYING</h3><div class="chest-list" id="chest-inv"></div></div>
+        <div><h3>CHEST</h3><div class="chest-list" id="chest-box"></div></div>
+      </div>
+      <div class="row-btns">
+        <button class="btn" data-action="storeall">STORE FOOD, DRINKS &amp; BATTERIES</button>
+        <button class="btn primary" data-action="closeui">DONE</button>
       </div>
     </div>
   </section>
@@ -260,9 +345,10 @@
     <div class="end-inner">
       <div class="end-title red">YOU DIED</div>
       <div class="end-msg" id="death-msg"></div>
+      <div class="end-tip">Better luck next time.</div>
       <div class="end-sub" id="death-sub"></div>
       <div class="row-btns">
-        <button class="btn primary" data-action="respawn">RESPAWN AT CAMP</button>
+        <button class="btn primary" data-action="respawn">RESPAWN</button>
         <button class="btn" data-action="quit">MAIN MENU</button>
       </div>
     </div>
@@ -295,6 +381,8 @@
       <div class="row-btns"><button class="btn primary" data-action="resume">CONTINUE</button></div>
     </div>
   </section>
+
+  <div id="intro" class="hidden"><div class="intro-text">ALTEKZ STUDIOS</div><div class="intro-sub">presents</div></div>
 
   <div id="rotate-hint">
     <div class="rot-icon" data-icon="rotate"></div>

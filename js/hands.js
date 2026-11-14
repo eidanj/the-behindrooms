@@ -179,6 +179,45 @@ export class Hands {
       g.add(ring, shaft, t1, t2, tag);
       I.key = g;
     }
+    {
+      const g = new THREE.Group();
+      const b = Models.bananaFruit(M);
+      b.scale.setScalar(0.9);
+      b.rotation.set(0.2, 0.3, 0.4);
+      b.position.set(0, 0.04, -0.05);
+      g.add(b);
+      I.fruit = g;
+    }
+    {
+      const g = new THREE.Group();
+      const n = Models.noisemaker(M);
+      n.scale.setScalar(0.75);
+      n.position.set(0, 0.045, -0.04);
+      g.add(n);
+      I.noisemaker = g;
+    }
+    {
+      const g = new THREE.Group();
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 16), L({ color: 0xefeae0 }));
+      roll.rotation.z = Math.PI / 2; roll.position.set(0, 0.04, -0.04);
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.002, 0.06), L({ color: 0xe8e2d4 }));
+      tail.position.set(0, 0.012, -0.075);
+      g.add(roll, tail);
+      I.bandage = g;
+    }
+    {
+      const g = new THREE.Group();
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.08), new THREE.MeshPhongMaterial({ color: 0xc81e1e, shininess: 50 }));
+      box.position.set(0, 0.05, -0.05);
+      const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.012, 0.002), L({ color: 0xffffff }));
+      c1.position.set(0, 0.05, -0.009);
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.04, 0.002), L({ color: 0xffffff }));
+      c2.position.set(0, 0.05, -0.009);
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.004, 4, 10, Math.PI), L({ color: 0x222222 }));
+      handle.position.set(0, 0.086, -0.05);
+      g.add(box, c1, c2, handle);
+      I.medkit = g;
+    }
     // ── melee weapons: held upright through the fist, tipped forward ──
     const weapon = (build) => { const g = new THREE.Group(); build(g); g.rotation.x = -0.95; g.position.set(0, 0.0, -0.02); return g; };
     const metal = new THREE.MeshPhongMaterial({ color: 0x8a8d90, shininess: 60, specular: 0x444444 });
@@ -199,6 +238,26 @@ export class Hands {
       const k = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), wood); k.position.y = -0.1;
       const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.017, 0.12, 10), L({ color: 0x1a1a1a })); tape.position.y = -0.02;
       g.add(b, k, tape);
+    });
+    I.club = weapon((g) => {
+      const wood = new THREE.MeshPhongMaterial({ color: 0x8a6238, shininess: 15 });
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.02, 0.62, 7), wood); b.position.y = 0.22;
+      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.06, 0.05), wood); nail.position.set(0.01, 0.44, 0); nail.rotation.z = 0.3;
+      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.1, 8), L({ color: 0x8c8c8c })); tape.position.y = -0.03;
+      g.add(b, nail, tape);
+    });
+    I.spikedbat = weapon((g) => {
+      const wood = new THREE.MeshPhongMaterial({ color: 0xb98a52, shininess: 30 });
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.016, 0.7, 12), wood); b.position.y = 0.26;
+      const nailM = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, shininess: 90 });
+      for (let i = 0; i < 9; i++) {
+        const n = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.09, 4), nailM);
+        const a = i * 2.1, y = 0.42 + (i % 3) * 0.07;
+        n.position.set(Math.cos(a) * 0.04, y, Math.sin(a) * 0.04); n.rotation.set(Math.sin(a) * 1.5, 0, -Math.cos(a) * 1.5);
+        g.add(n);
+      }
+      const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.017, 0.12, 10), L({ color: 0x8c8c8c })); tape.position.y = -0.02;
+      g.add(b, tape);
     });
     I.axe = weapon((g) => {
       const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.66, 8), L({ color: 0xa52a1e })); handle.position.y = 0.22;

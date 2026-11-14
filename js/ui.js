@@ -1,7 +1,7 @@
 // DOM-side UI: screens, HUD, hotbar, compass, toasts and screen effects.
 
-import { ITEMS, SLOTS, WEAPONS } from './items.js';
-import { STARS_TO_WIN, PLAYER, FLASHLIGHT } from './config.js';
+import { ITEMS, SLOTS, WEAPONS, SUBTYPES, MATERIALS, STORABLE } from './items.js';
+import { STARS_TO_WIN, PLAYER, FLASHLIGHT, VENT, RECIPES } from './config.js';
 import { ICON, fillIcons } from './icons.js';
 
 const $ = (s) => document.querySelector(s);
@@ -24,9 +24,20 @@ export const ICONS = {
   crowbar: svg(`<path d="M8 34 L28 10 q4 -5 0 -6 l-3 1" stroke="#d05050" stroke-width="3"/>`),
   bat: svg(`<path d="M8 34 L12 30" stroke-width="3"/><path d="M12 30 L31 9 a3 3 0 0 0 -3 -3 L10 28 Z" stroke="${Y}"/>`),
   axe: svg(`<path d="M9 34 L29 8" stroke="#d05050" stroke-width="3"/><path d="M22 6 q10 2 12 12 l-8 -2 z" stroke="${Y}"/>`),
-  food: null, drink: null,
+  club: svg(`<path d="M9 34 L27 9" stroke-width="3.5"/><path d="M24 8 l6 4" stroke="${Y}" stroke-width="3"/>`),
+  spikedbat: svg(`<path d="M8 34 L12 30" stroke-width="3"/><path d="M12 30 L31 9 a3 3 0 0 0 -3 -3 L10 28 Z"/><path d="M24 8 l-2 -3 M29 13 l3 2 M27 6 l1 -3 M31 10 l3 0" stroke="${Y}"/>`),
+  fruit: svg(`<path d="M9 9 C8 24 18 33 33 30 C33 28 31 27 29 27 C19 27 13 20 12 9 Z"/><path d="M9 9 l1 -4" stroke="${Y}"/>`),
+  noisemaker: svg(`<circle cx="20" cy="22" r="11"/><path d="M20 16 v6 l4 3" stroke="${Y}"/><path d="M10 12 l4 3 M30 12 l-4 3 M8 7 l3 2 M32 7 l-3 2" stroke="${Y}"/>`),
+  bandage: svg(`<rect x="6" y="14" width="28" height="12" rx="6" transform="rotate(-35 20 20)"/><path d="M17 17 l6 6 M20 15 l2 2 M15 21 l2 2" stroke="${Y}"/>`),
+  medkit: svg(`<rect x="6" y="11" width="28" height="22" rx="2"/><path d="M15 11 v-4 h10 v4" /><path d="M20 16 v12 M14 22 h12" stroke="#ff6a5a" stroke-width="3"/>`),
+  wood: svg(`<path d="M6 26 L30 12 L34 17 L10 31 Z"/><path d="M12 24 l3 3 M20 19 l2 3" stroke="${Y}"/>`),
+  metal: svg(`<path d="M7 22 L16 10 L33 14 L28 30 L12 31 Z"/><circle cx="16" cy="18" r="1.6" fill="${Y}" stroke="none"/><circle cx="26" cy="22" r="1.6" fill="${Y}" stroke="none"/>`),
+  cloth: svg(`<path d="M8 10 h24 v18 q-6 -4 -12 0 q-6 4 -12 0 Z"/><path d="M8 16 h24 M8 22 h24" stroke="${Y}" stroke-width="1.4"/>`),
+  tape: svg(`<circle cx="18" cy="20" r="11"/><circle cx="18" cy="20" r="4.5"/><path d="M29 20 h7 v6 h-9" stroke="${Y}"/>`),
+  battery: svg(`<rect x="6" y="13" width="25" height="14" rx="2"/><path d="M31 17 h3 v6 h-3"/><path d="M11 17 v6 M16 17 v6 M21 17 v6" stroke="${Y}"/>`),
+  med: null, food: null, drink: null,
 };
-ICONS.food = ICONS.bread; ICONS.drink = ICONS.coffee;
+ICONS.food = ICONS.bread; ICONS.drink = ICONS.coffee; ICONS.med = ICONS.bandage;
 
 // On touch devices, keyboard/mouse hints are swapped for the on-screen button icons.
 const K = (name) => `<kbd>${ICON[name]}</kbd>`;
@@ -48,6 +59,8 @@ const TOUCH_MAP = [
   [/click to punch/g, 'tap anywhere to punch'],
   [/right-click/g, `tap ${K('drop')}`],
   [/left-click/g, `tap ${K('use')}`],
+  [/Hold <kbd>C<\/kbd>/g, `Tap ${K('crouch')}`],
+  [/<kbd>C<\/kbd>/g, K('crouch')],
   [/[Pp]ress <kbd>(\d)<\/kbd>/g, 'tap slot <kbd>$1</kbd>'],
   [/<kbd>(\d)<\/kbd> again/g, 'slot <kbd>$1</kbd> again'],
 ];
@@ -147,14 +160,14 @@ export class UI {
 
   updateHotbar(p) {
     const inv = p.inv;
-    const key = JSON.stringify(inv.counts) + JSON.stringify(inv.weapons) + inv.equipped + inv.slot + inv.sub.food + inv.sub.drink + p.flashlightOn;
+    const key = JSON.stringify(inv.counts) + JSON.stringify(inv.weapons) + inv.equipped + inv.slot + JSON.stringify(inv.sub) + p.flashlightOn + p.mode;
     if (key === this.lastHot) return;
     this.lastHot = key;
     SLOTS.forEach((cat, i) => {
       const el = this.slotEls[i];
       const n = inv.catCount(cat);
       let icon = cat;
-      if (cat === 'food' || cat === 'drink') icon = inv.counts[inv.sub[cat]] > 0 ? inv.sub[cat] : cat;
+      if (SUBTYPES[cat]) icon = inv.counts[inv.sub[cat]] > 0 ? inv.sub[cat] : SUBTYPES[cat].find((s) => inv.counts[s] > 0) || (cat === 'rock' ? 'rock' : cat);
       if (cat === 'melee') icon = inv.equipped >= 0 ? inv.weapons[inv.equipped].type : 'fists';
       el.querySelector('.ic').innerHTML = ICONS[icon] || '';
       const w = cat === 'melee' ? inv.weapon() : null;
@@ -170,23 +183,24 @@ export class UI {
     const held = inv.held();
     const cat = SLOTS[inv.slot];
     let name;
-    if (cat === 'flashlight') name = `Flashlight · ${p.flashlightOn ? 'ON' : 'OFF'} · <kbd>L</kbd> toggle · <kbd>R</kbd> new battery (${inv.counts.battery}) · click to punch`;
+    if (cat === 'flashlight') name = `Flashlight · ${p.flashlightOn ? 'ON' : 'OFF'} · click or <kbd>L</kbd> to toggle · <kbd>R</kbd> new battery (${inv.counts.battery})`;
     else if (cat === 'melee') {
       const w = inv.weapon(), d = WEAPONS[w ? w.type : 'fists'];
       name = `${d.name} · ${d.dmg} dmg${w ? ` · ${w.dur} hits left` : ''} · click or <kbd>F</kbd> to ${d.fist ? 'punch' : 'swing'}`;
       if (inv.weapons.length) name += ` · <kbd>7</kbd> again to switch`;
     }
-    else if (!held) name = { food: 'No food', drink: 'No drinks', rock: 'No rocks', banana: 'No banana peels', key: 'No saferoom keys' }[cat] + ' · click to punch';
+    else if (!held) name = { food: 'No food', drink: 'No drinks', rock: 'No rocks or noisemakers', banana: 'No banana peels', key: 'No saferoom keys', med: 'No bandages or first aid kits' }[cat] + ' · click to punch';
     else {
       const d = ITEMS[held];
       name = d.name + (d.desc ? ` <span style="opacity:.6">· ${d.desc}</span>` : '');
-      if (cat === 'food' || cat === 'drink') {
-        const kinds = (cat === 'food' ? ['bread', 'granola', 'cookie'] : ['coffee', 'energy', 'almond']).filter((s) => inv.counts[s] > 0).length;
+      if (SUBTYPES[cat]) {
+        const kinds = SUBTYPES[cat].filter((s) => inv.counts[s] > 0).length;
         if (kinds > 1) name += ` · press <kbd>${inv.slot + 1}</kbd> again to switch`;
       }
       if (held === 'key') name += ' · use it on a locked saferoom door with <kbd>E</kbd> · click to punch';
-      if (held === 'rock') name += ' · click to throw';
+      if (held === 'rock' || held === 'noisemaker') name += ' · click to throw';
       if (held === 'banana') name += ' · click throw · right-click drop';
+      if (cat === 'med') name += ' · click to use';
     }
     this.hotName.innerHTML = this.t(name);
   }
@@ -252,6 +266,34 @@ export class UI {
     const bp = p.battery / FLASHLIGHT.batterySeconds;
     this._stat('battery', p.battery, FLASHLIGHT.batterySeconds, `${Math.ceil(bp * 100)}%`, bp < 0.15);
 
+    // health (with a lagging "damage taken" bar)
+    const hp = Math.max(0, p.health / PLAYER.maxHealth);
+    if (this._hp !== hp) {
+      this._hp = hp;
+      $('#health .hb').style.width = `${hp * 100}%`;
+      $('#health .hb-lag').style.width = `${hp * 100}%`;
+      $('#health .hv').textContent = Math.ceil(p.health);
+      $('#health').classList.toggle('low', hp < 0.3);
+    }
+    // crouch meter (only while it isn't full)
+    const cm = $('#m-crouch');
+    cm.classList.toggle('hidden', p.crouchMeter >= 0.999 && !p.crouching);
+    cm.classList.toggle('locked', p.crouchLock);
+    cm.querySelector('.bar > div').style.width = `${p.crouchMeter * 100}%`;
+    // vent durability
+    const vm = $('#m-vent');
+    if (p.mode === 'vent' && p.vent) {
+      const d = Math.max(0, p.vent.st.dur / VENT.durability);
+      vm.classList.remove('hidden');
+      vm.classList.toggle('low', d < 0.3 || p.ventT > VENT.maxTime - 20);
+      vm.querySelector('.bar > div').style.width = `${d * 100}%`;
+      vm.querySelector('small').textContent = `${Math.max(0, Math.ceil(VENT.maxTime - p.ventT))}s`;
+    } else vm.classList.add('hidden');
+    // crafting materials
+    const short = { wood: 'Wood', metal: 'Metal', cloth: 'Cloth', tape: 'Tape' };
+    const mats = MATERIALS.filter((m) => p.inv.counts[m] > 0).map((m) => `<span>${short[m]} <b>${p.inv.counts[m]}</b></span>`).join('');
+    if (mats !== this._mats) { $('#mats').innerHTML = mats; this._mats = mats; }
+
     $('#stars-carried').textContent = p.stars;
     $('#stars-banked').textContent = g.banked;
 
@@ -272,6 +314,24 @@ export class UI {
     } else chaseEl.classList.add('hidden');
 
     this.updateHotbar(p);
+  }
+
+  // weapon recharge bar under the crosshair (like Minecraft's attack indicator)
+  updateCooldown(cd, max, show) {
+    const el = this._cdEl || (this._cdEl = $('#cooldown'));
+    const k = max > 0 ? Math.max(0, Math.min(1, 1 - cd / max)) : 1;
+    const vis = show && k < 1;
+    if (vis !== this._cdVis) { el.classList.toggle('hidden', !vis); this._cdVis = vis; }
+    if (vis) el.firstChild.style.width = `${k * 100}%`;
+  }
+
+  hurtFlash(amount) {
+    const el = $('#hurt');
+    el.style.transition = 'none';
+    el.style.opacity = Math.min(1, 0.35 + amount / 40).toFixed(2);
+    void el.offsetWidth;
+    el.style.transition = 'opacity 0.7s';
+    el.style.opacity = 0;
   }
 
   _stat(name, v, max, text, low) {
@@ -321,50 +381,93 @@ export class UI {
     $('#fx-grain').style.backgroundImage = `url(${c.toDataURL()})`;
   }
 
-  _drawJumpscare() {
-    const c = $('#js-canvas'), g = c.getContext('2d');
+  // Jumpscare faces, one per monster type (drawn once, then cached).
+  _drawJumpscare(type = 'hollow') {
+    this._jsCache = this._jsCache || {};
+    if (this._jsCache[type]) return this._jsCache[type];
     const W = 600;
+    const c = document.createElement('canvas'); c.width = c.height = W;
+    const g = c.getContext('2d');
+    const P = {
+      hollow:    { sk: ['#d8cdb9', '#9a8e7c', '#2a231c'], rx: 200, ry: 285, eyes: 'sockets', mouth: 'gape', teeth: '#d6cba2', veins: 'rgba(60,30,50,0.55)', tint: [18, -6, -8] },
+      crawler:   { sk: ['#a7ab9a', '#6a6e5f', '#1b1c16'], rx: 260, ry: 190, eyes: 'many', mouth: 'wide', teeth: '#e4dcc0', veins: 'rgba(40,50,30,0.5)', tint: [0, 8, -4] },
+      brute:     { sk: ['#c89482', '#8a4f40', '#2a120c'], rx: 250, ry: 250, eyes: 'small', mouth: 'maw', teeth: '#e8dfc4', veins: 'rgba(90,20,20,0.6)', tint: [24, -10, -10] },
+      hound:     { sk: ['#efe0d0', '#b9a291', '#2c211a'], rx: 170, ry: 300, eyes: 'none', mouth: 'jaws', teeth: '#f2ecd8', veins: 'rgba(120,60,60,0.45)', tint: [10, 0, -6] },
+      smiler:    { sk: ['#111', '#060606', '#000'], rx: 230, ry: 250, eyes: 'glow', mouth: 'grin', teeth: '#ffffff', veins: null, tint: [0, 0, 0] },
+      mannequin: { sk: ['#f4efe6', '#cfc6b8', '#3a352e'], rx: 190, ry: 270, eyes: 'none', mouth: 'none', teeth: null, veins: null, crack: true, tint: [6, 4, 0] },
+    }[type] || {};
     g.fillStyle = '#000'; g.fillRect(0, 0, W, W);
-    const face = g.createRadialGradient(300, 250, 20, 300, 300, 290);
-    face.addColorStop(0, '#d8cdb9'); face.addColorStop(0.45, '#9a8e7c'); face.addColorStop(0.8, '#2a231c'); face.addColorStop(1, '#000');
+    const face = g.createRadialGradient(300, 250, 20, 300, 300, Math.max(P.rx, P.ry) + 20);
+    face.addColorStop(0, P.sk[0]); face.addColorStop(0.45, P.sk[1]); face.addColorStop(0.82, P.sk[2]); face.addColorStop(1, '#000');
     g.fillStyle = face;
-    g.beginPath(); g.ellipse(300, 300, 200, 285, 0, 0, Math.PI * 2); g.fill();
-    // veins
-    g.strokeStyle = 'rgba(60,30,50,0.55)'; g.lineWidth = 2;
-    for (let i = 0; i < 26; i++) {
-      let x = 300 + (Math.random() - 0.5) * 340, y = 300 + (Math.random() - 0.5) * 460;
-      g.beginPath(); g.moveTo(x, y);
-      for (let k = 0; k < 6; k++) { x += (Math.random() - 0.5) * 50; y += (Math.random() - 0.5) * 50; g.lineTo(x, y); }
+    g.beginPath(); g.ellipse(300, 300, P.rx, P.ry, 0, 0, Math.PI * 2); g.fill();
+    if (P.veins) {
+      g.strokeStyle = P.veins; g.lineWidth = 2;
+      for (let i = 0; i < 26; i++) {
+        let x = 300 + (Math.random() - 0.5) * P.rx * 1.7, y = 300 + (Math.random() - 0.5) * P.ry * 1.6;
+        g.beginPath(); g.moveTo(x, y);
+        for (let k = 0; k < 6; k++) { x += (Math.random() - 0.5) * 50; y += (Math.random() - 0.5) * 50; g.lineTo(x, y); }
+        g.stroke();
+      }
+    }
+    const socket = (sx, sy, rx, ry) => {
+      const e = g.createRadialGradient(sx, sy, 3, sx, sy, Math.max(rx, ry));
+      e.addColorStop(0, '#000'); e.addColorStop(0.6, 'rgba(0,0,0,0.95)'); e.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = e; g.beginPath(); g.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    };
+    if (P.eyes === 'sockets') { socket(215, 220, 72, 50); socket(385, 220, 72, 50); }
+    if (P.eyes === 'small') { socket(240, 210, 30, 18); socket(360, 210, 30, 18); }
+    if (P.eyes === 'many') for (let i = 0; i < 8; i++) socket(170 + (i % 4) * 85, 190 + Math.floor(i / 4) * 40 + (i % 2) * 8, 16, 12);
+    if (P.eyes === 'glow') {
+      for (const sx of [225, 375]) { g.shadowColor = '#fff'; g.shadowBlur = 30; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(sx, 210, 34, 16, 0, 0, Math.PI * 2); g.fill(); }
+      g.shadowBlur = 0;
+    }
+    const teethRow = (cx, cy, rx, ry, n, a0, a1, up) => {
+      g.fillStyle = P.teeth;
+      for (let i = 0; i < n; i++) {
+        const a = a0 + (i / (n - 1)) * (a1 - a0);
+        const x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+        g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.lineTo(x + (cx - x) * 0.12, y + (up ? -1 : 1) * (30 + Math.random() * 22)); g.fill();
+      }
+    };
+    if (P.mouth === 'gape' || P.mouth === 'maw' || P.mouth === 'wide' || P.mouth === 'jaws') {
+      const [mx, my, mrx, mry] = P.mouth === 'maw' ? [300, 420, 150, 110] : P.mouth === 'wide' ? [300, 360, 200, 80] : P.mouth === 'jaws' ? [300, 440, 95, 150] : [300, 430, 80, 130];
+      g.fillStyle = '#050202';
+      g.beginPath(); g.ellipse(mx, my, mrx, mry, 0, 0, Math.PI * 2); g.fill();
+      const n = P.mouth === 'jaws' ? 12 : 9;
+      teethRow(mx, my, mrx * 0.95, mry * 0.95, n, Math.PI * 1.15, Math.PI * 1.85, false);
+      teethRow(mx, my, mrx * 0.95, mry * 0.95, n, Math.PI * 0.15, Math.PI * 0.85, true);
+      if (P.mouth === 'maw') { g.fillStyle = P.teeth; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(300 + s * 120, 400); g.lineTo(300 + s * 150, 400); g.lineTo(300 + s * 140, 300); g.fill(); } }
+    }
+    if (P.mouth === 'grin') {
+      g.shadowColor = '#fff'; g.shadowBlur = 24;
+      g.fillStyle = '#fff';
+      g.beginPath(); g.moveTo(110, 330); g.quadraticCurveTo(300, 560, 490, 330); g.quadraticCurveTo(300, 440, 110, 330); g.fill();
+      g.shadowBlur = 0;
+      g.strokeStyle = '#000'; g.lineWidth = 4;
+      for (let i = 1; i < 16; i++) { const x = 110 + i * 24.4; const t = (x - 110) / 380; const yTop = 330 + 4 * t * (1 - t) * 110 * 0.55, yBot = 330 + 4 * t * (1 - t) * 230 * 0.55; g.beginPath(); g.moveTo(x, yTop); g.lineTo(x, yBot); g.stroke(); }
+    }
+    if (P.crack) {
+      g.strokeStyle = 'rgba(40,30,20,0.8)'; g.lineWidth = 3;
+      g.beginPath(); let x = 330, y = 60; g.moveTo(x, y);
+      for (let k = 0; k < 9; k++) { x += (Math.random() - 0.5) * 50; y += 40 + Math.random() * 20; g.lineTo(x, y); }
       g.stroke();
     }
-    // empty eye sockets
-    for (const sx of [215, 385]) {
-      const e = g.createRadialGradient(sx, 220, 4, sx, 220, 70);
-      e.addColorStop(0, '#000'); e.addColorStop(0.6, 'rgba(0,0,0,0.95)'); e.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = e; g.beginPath(); g.ellipse(sx, 220, 72, 50, 0, 0, Math.PI * 2); g.fill();
-    }
-    // gaping mouth
-    g.fillStyle = '#050202';
-    g.beginPath(); g.ellipse(300, 430, 80, 130, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#d6cba2';
-    for (let i = 0; i < 9; i++) {
-      const a0 = Math.PI * 1.15 + (i / 8) * Math.PI * 0.7;
-      const x = 300 + Math.cos(a0) * 76, y = 430 + Math.sin(a0) * 124;
-      g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.lineTo(x + (300 - x) * 0.12, y + 34 + Math.random() * 22); g.fill();
-      const b0 = Math.PI * 0.15 + (i / 8) * Math.PI * 0.7;
-      const x2 = 300 + Math.cos(b0) * 76, y2 = 430 + Math.sin(b0) * 124;
-      g.beginPath(); g.moveTo(x2 - 9, y2); g.lineTo(x2 + 9, y2); g.lineTo(x2 + (300 - x2) * 0.12, y2 - 30 - Math.random() * 20); g.fill();
-    }
     const img = g.getImageData(0, 0, W, W);
+    const [tr, tg, tb] = P.tint;
     for (let i = 0; i < img.data.length; i += 4) {
       const n = (Math.random() - 0.5) * 50;
-      img.data[i] += n + 18; img.data[i + 1] += n - 6; img.data[i + 2] += n - 8;
+      img.data[i] += n + tr; img.data[i + 1] += n + tg; img.data[i + 2] += n + tb;
     }
     g.putImageData(img, 0, 0);
+    this._jsCache[type] = c;
+    return c;
   }
 
-  jumpscare(ms = 750) {
+  jumpscare(ms = 750, type = 'hollow') {
     const el = $('#jumpscare');
+    const dst = $('#js-canvas').getContext('2d');
+    dst.drawImage(this._drawJumpscare(type), 0, 0);
     el.classList.add('on');
     clearTimeout(this._js);
     this._js = setTimeout(() => el.classList.remove('on'), ms);
@@ -372,7 +475,13 @@ export class UI {
 
   // ── settings form ──
   bindSettings(settings, onChange) {
-    const fmt = { sensitivity: (v) => `${(+v).toFixed(2)}×`, fov: (v) => `${v}°`, brightness: (v) => `${Math.round(v * 100)}%`, masterVolume: (v) => `${Math.round(v * 100)}%`, musicVolume: (v) => `${Math.round(v * 100)}%` };
+    const pct = (v) => `${Math.round(v * 100)}%`;
+    const fmt = {
+      sensitivity: (v) => `${(+v).toFixed(2)}×`, fov: (v) => `${v}°`, brightness: pct, masterVolume: pct, musicVolume: pct,
+      renderScale: pct, maxDPR: (v) => `${(+v).toFixed(2)}×`, maxLights: (v) => `${v}`, lightRange: (v) => `${v} m`,
+      viewDist: (v) => ['', 'Near (3×3 chunks)', 'Normal (5×5)', 'Far (7×7)'][v] || v, fogDay: (v) => `${v} m`, fogNight: (v) => `${v} m`,
+    };
+    this._syncers = [];
     for (const el of document.querySelectorAll('[data-set]')) {
       const k = el.dataset.set;
       const out = document.querySelector(`[data-out="${k}"]`);
@@ -382,12 +491,74 @@ export class UI {
         if (out) out.textContent = fmt[k] ? fmt[k](settings[k]) : settings[k];
       };
       sync();
+      this._syncers.push(sync);
       el.addEventListener('input', () => {
-        settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? parseFloat(el.value) : el.value;
+        const num = el.tagName === 'SELECT' && /^\d+(\.\d+)?$/.test(el.value);
+        settings[k] = el.type === 'checkbox' ? el.checked : el.type === 'range' || num ? parseFloat(el.value) : el.value;
         if (out) out.textContent = fmt[k] ? fmt[k](settings[k]) : settings[k];
         onChange(k);
       });
     }
+  }
+
+  syncSettings() { for (const s of this._syncers || []) s(); }
+
+  // ── crafting table ──
+  renderCraft(p, onCraft) {
+    const inv = p.inv;
+    $('#craft-mats').innerHTML = ['wood', 'metal', 'cloth', 'tape'].map((m) => `<span>${ICONS[m].replace('<svg', '<svg style="width:26px;height:26px;vertical-align:-6px"')} ${ITEMS[m].name} <b>${inv.counts[m] || 0}</b></span>`).join('');
+    const list = $('#craft-list');
+    list.innerHTML = '';
+    for (const r of RECIPES) {
+      const can = Object.entries(r.needs).every(([m, n]) => (inv.counts[m] || 0) >= n);
+      const el = document.createElement('div');
+      el.className = `recipe${can ? '' : ' cant'}`;
+      const name = (WEAPONS[r.out] || ITEMS[r.out]).name;
+      const needs = Object.entries(r.needs).map(([m, n]) => `<span class="${(inv.counts[m] || 0) >= n ? 'ok' : 'no'}">${n} ${ITEMS[m].name}</span>`).join(' · ');
+      el.innerHTML = `<div class="ric">${ICONS[r.out] || ''}</div><div><div class="rn">${name}</div><div class="rd">${r.desc}</div><div class="rq">${needs}</div></div><button class="btn" ${can ? '' : 'disabled'}>CRAFT</button>`;
+      el.querySelector('button').addEventListener('click', () => onCraft(r));
+      list.appendChild(el);
+    }
+  }
+
+  // ── camp chest ──
+  renderChest(p, chest, onMove) {
+    const inv = p.inv;
+    const row = (k, n, dir) => {
+      const d = ITEMS[k];
+      const el = document.createElement('div');
+      el.className = 'chest-row';
+      el.innerHTML = `<span>${ICONS[k] || ''}</span><span>${d.name} ×${n}</span><button>${dir === 'in' ? 'STORE 1' : 'TAKE 1'}</button><button>${dir === 'in' ? 'ALL' : 'ALL'}</button>`;
+      const [b1, b2] = el.querySelectorAll('button');
+      b1.addEventListener('click', () => onMove(k, dir, 1));
+      b2.addEventListener('click', () => onMove(k, dir, n));
+      return el;
+    };
+    const a = $('#chest-inv'), b = $('#chest-box');
+    a.innerHTML = ''; b.innerHTML = '';
+    for (const k of STORABLE) if ((inv.counts[k] || 0) > 0) a.appendChild(row(k, inv.counts[k], 'in'));
+    for (const k of STORABLE) if ((chest[k] || 0) > 0) b.appendChild(row(k, chest[k], 'out'));
+    if (!a.children.length) a.innerHTML = '<div class="chest-empty">Nothing to store</div>';
+    if (!b.children.length) b.innerHTML = '<div class="chest-empty">Empty</div>';
+  }
+
+  // ── first-launch studio intro ──
+  introBlack() { const el = $('#intro'); el.classList.remove('hidden', 'out', 'show'); }
+
+  intro(done) {
+    const el = $('#intro');
+    el.classList.remove('hidden', 'out', 'show');
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      el.classList.add('out');
+      setTimeout(() => { el.classList.add('hidden'); el.classList.remove('out', 'show'); done(); }, 750);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+    setTimeout(() => el.classList.remove('show'), 3300);
+    setTimeout(finish, 4800);
+    el.addEventListener('pointerdown', finish, { once: true });
   }
 
   tutorial(step, total, html, hint, done = false) {

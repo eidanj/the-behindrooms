@@ -70,7 +70,7 @@ export class Cycle {
       else if (t < 5.5) { day = 0; }
       else if (t < 9) { day = 0; night = 1; chaos = t < 6.3 ? 0.6 : 0; }
       else { day = 1; chaos = 1 - smoothstep(9, 11, t); }
-      const nightAmb = 0.05 * ambientMult;
+      const nightAmb = CYCLE.nightAmbient * ambientMult;
       const ambient = t < 3.5 ? 1 : t < 9 ? nightAmb : 1;
       return { day, night, chaos, ambient, nightMix: 0 };
     }
@@ -90,7 +90,7 @@ export class Cycle {
       const left = this.nightLength - this.t;
       if (left < 6) { chaos = Math.max(chaos, 1 - left / 6); nightMix = Math.max(0.5, left / 6); }
     }
-    const nightAmb = 0.05 * ambientMult;
+    const nightAmb = CYCLE.nightAmbient * ambientMult;
     let ambient;
     if (this.phase === 'day') {
       const left = this.dayLength - this.t;

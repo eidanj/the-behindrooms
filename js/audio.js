@@ -283,8 +283,10 @@ export class AudioEngine {
     for (const b of this.breathers) if (!b.dead && now > b.next - 0.3) this._breath(b);
   }
 
-  // ── breathing entities ───────────────────────────────────
-  createBreather(pos) {
+  // ── monster voices ───────────────────────────────────────
+  // voice: breath (Hollow) · chitter (Crawler) · growl (Brute) · pant (Hound)
+  //        hum (Smiler) · creak (Mannequin)
+  createBreather(pos, voice = 'breath') {
     if (!this.ctx) return null;
     const ctx = this.ctx;
     const panner = this._panner(pos, 2.0, 1.15);
@@ -294,33 +296,95 @@ export class AudioEngine {
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 1.3;
     const env = ctx.createGain(); env.gain.value = 0.0001;
     src.connect(bp); bp.connect(env); env.connect(out);
-    const growl = ctx.createOscillator(); growl.type = 'sawtooth'; growl.frequency.value = 52 + Math.random() * 18;
-    const glp = ctx.createBiquadFilter(); glp.type = 'lowpass'; glp.frequency.value = 170;
+    const growl = ctx.createOscillator();
+    const glp = ctx.createBiquadFilter(); glp.type = 'lowpass';
+    const V = {
+      breath: ['sawtooth', 52 + Math.random() * 18, 170],
+      chitter: ['square', 160 + Math.random() * 60, 1200],
+      growl: ['sawtooth', 38 + Math.random() * 8, 260],
+      pant: ['sawtooth', 95 + Math.random() * 25, 500],
+      hum: ['sine', 233 + Math.random() * 40, 3000],
+      creak: ['triangle', 300, 900],
+    }[voice] || ['sawtooth', 55, 170];
+    growl.type = V[0]; growl.frequency.value = V[1]; glp.frequency.value = V[2];
     const genv = ctx.createGain(); genv.gain.value = 0.0001;
     growl.connect(glp); glp.connect(genv); genv.connect(out);
     src.start(); growl.start();
-    const b = { panner, out, src, growl, bp, env, genv, next: ctx.currentTime + Math.random() * 1.2, rate: 1, intensity: 1, dead: false };
+    const b = { panner, out, src, growl, bp, env, genv, voice, base: V[1], next: ctx.currentTime + Math.random() * 1.2, rate: 1, intensity: 1, dead: false };
     this.breathers.add(b);
     return b;
   }
 
   _breath(b) {
     const t = Math.max(b.next, this.ctx.currentTime + 0.02);
-    const r = b.rate, I = Math.max(0.05, b.intensity);
+    const r = b.rate, I = Math.max(0.02, b.intensity);
+    const E = b.env.gain, G = b.genv.gain, F = b.bp.frequency, O = b.growl.frequency;
+    switch (b.voice) {
+      case 'chitter': {
+        const n = 6 + Math.floor(Math.random() * 8), gap = 0.035 / Math.max(0.6, r * 0.8);
+        b.bp.Q.value = 6;
+        for (let i = 0; i < n; i++) {
+          const k = t + i * gap;
+          F.setValueAtTime(2400 + Math.random() * 1800, k);
+          E.setValueAtTime(0.0001, k); E.exponentialRampToValueAtTime(0.5 * I, k + 0.004); E.exponentialRampToValueAtTime(0.0001, k + 0.025);
+          G.setValueAtTime(0.0001, k); G.exponentialRampToValueAtTime(0.05 * I, k + 0.004); G.exponentialRampToValueAtTime(0.0001, k + 0.02);
+        }
+        b.next = t + n * gap + (0.4 + Math.random() * 1.1) / r;
+        return;
+      }
+      case 'growl': {
+        const d = 1.9 / r;
+        O.setValueAtTime(b.base, t); O.linearRampToValueAtTime(b.base * (0.8 + Math.random() * 0.3), t + d);
+        G.setValueAtTime(0.0001, t); G.exponentialRampToValueAtTime(0.55 * I, t + 0.35); G.exponentialRampToValueAtTime(0.0001, t + d);
+        F.setValueAtTime(220, t); E.setValueAtTime(0.0001, t); E.exponentialRampToValueAtTime(0.35 * I, t + 0.3); E.exponentialRampToValueAtTime(0.0001, t + d);
+        b.next = t + d + (0.5 + Math.random()) / r;
+        return;
+      }
+      case 'pant': {
+        const n = 3 + Math.floor(r * 2.5), p = 0.32 / r;
+        for (let i = 0; i < n; i++) {
+          const k = t + i * p;
+          F.setValueAtTime(i % 2 ? 900 : 1500, k);
+          E.setValueAtTime(0.0001, k); E.exponentialRampToValueAtTime(0.45 * I, k + 0.04); E.exponentialRampToValueAtTime(0.0001, k + p * 0.8);
+        }
+        if (Math.random() < 0.25 * r) { const k = t + n * p; G.setValueAtTime(0.0001, k); G.exponentialRampToValueAtTime(0.35 * I, k + 0.05); G.exponentialRampToValueAtTime(0.0001, k + 0.6); }
+        b.next = t + n * p + (0.3 + Math.random() * 0.8) / r;
+        return;
+      }
+      case 'hum': {
+        const d = 2.4 / Math.sqrt(r);
+        O.setValueAtTime(b.base * (r > 1.5 ? 1.5 : 1), t);
+        O.linearRampToValueAtTime(b.base * (r > 1.5 ? 1.7 : 1.06), t + d * 0.5);
+        O.linearRampToValueAtTime(b.base * (r > 1.5 ? 1.3 : 0.97), t + d);
+        G.setValueAtTime(0.0001, t); G.exponentialRampToValueAtTime(0.12 * I, t + d * 0.4); G.exponentialRampToValueAtTime(0.0001, t + d);
+        if (r > 1.5) for (let i = 0; i < 6; i++) { const k = t + i * 0.11; F.setValueAtTime(2200, k); E.setValueAtTime(0.0001, k); E.exponentialRampToValueAtTime(0.18 * I, k + 0.02); E.exponentialRampToValueAtTime(0.0001, k + 0.08); }
+        b.next = t + d + Math.random() * 1.5;
+        return;
+      }
+      case 'creak': {
+        const d = 0.25 + Math.random() * 0.35;
+        b.bp.Q.value = 9;
+        F.setValueAtTime(1300 + Math.random() * 900, t); F.linearRampToValueAtTime(700 + Math.random() * 600, t + d);
+        E.setValueAtTime(0.0001, t); E.exponentialRampToValueAtTime(0.6 * I, t + 0.03); E.exponentialRampToValueAtTime(0.0001, t + d);
+        if (Math.random() < 0.5) { G.setValueAtTime(0.0001, t + d); G.exponentialRampToValueAtTime(0.25 * I, t + d + 0.005); G.exponentialRampToValueAtTime(0.0001, t + d + 0.05); }
+        b.next = t + d + (0.15 + Math.random() * 0.9) / r;
+        return;
+      }
+    }
     const inD = 1.05 / r, outD = 1.45 / r;
-    b.bp.frequency.setValueAtTime(420, t);
-    b.bp.frequency.linearRampToValueAtTime(1250, t + inD);
-    b.env.gain.setValueAtTime(0.0001, t);
-    b.env.gain.exponentialRampToValueAtTime(0.38 * I, t + inD * 0.6);
-    b.env.gain.exponentialRampToValueAtTime(0.06 * I, t + inD);
+    F.setValueAtTime(420, t);
+    F.linearRampToValueAtTime(1250, t + inD);
+    E.setValueAtTime(0.0001, t);
+    E.exponentialRampToValueAtTime(0.38 * I, t + inD * 0.6);
+    E.exponentialRampToValueAtTime(0.06 * I, t + inD);
     const t2 = t + inD + 0.06;
-    b.bp.frequency.setValueAtTime(980, t2);
-    b.bp.frequency.exponentialRampToValueAtTime(360, t2 + outD);
-    b.env.gain.exponentialRampToValueAtTime(0.7 * I, t2 + 0.14);
-    b.env.gain.exponentialRampToValueAtTime(0.0001, t2 + outD);
-    b.genv.gain.setValueAtTime(0.0001, t2);
-    b.genv.gain.exponentialRampToValueAtTime(0.3 * I, t2 + 0.18);
-    b.genv.gain.exponentialRampToValueAtTime(0.0001, t2 + outD);
+    F.setValueAtTime(980, t2);
+    F.exponentialRampToValueAtTime(360, t2 + outD);
+    E.exponentialRampToValueAtTime(0.7 * I, t2 + 0.14);
+    E.exponentialRampToValueAtTime(0.0001, t2 + outD);
+    G.setValueAtTime(0.0001, t2);
+    G.exponentialRampToValueAtTime(0.3 * I, t2 + 0.18);
+    G.exponentialRampToValueAtTime(0.0001, t2 + outD);
     b.next = t2 + outD + (0.45 / r) * (0.6 + Math.random() * 0.9);
   }
 
@@ -345,12 +409,32 @@ export class AudioEngine {
   // ── sound effects ────────────────────────────────────────
   _ok() { return this.ctx && this.ctx.state === 'running'; }
 
-  footstep(sprint) {
+  footstep(sprint, surface = 'carpet', crouch = false) {
     if (!this._ok()) return;
     const t = this.now;
-    const g = sprint ? 0.32 : 0.2;
-    this.noise(t, 0.09, { gain: g, freq: 420 + Math.random() * 180, attack: 0.004 });
-    this.tone(70 + Math.random() * 15, t, 0.08, { gain: g * 0.6 });
+    const g = (sprint ? 0.32 : 0.2) * (crouch ? 0.35 : 1);
+    switch (surface) {
+      case 'concrete':
+      case 'tile':
+        this.noise(t, 0.05, { gain: g * 1.1, type: 'bandpass', freq: surface === 'tile' ? 2600 : 1600, q: 1.4, attack: 0.002 });
+        this.tone(surface === 'tile' ? 150 : 95, t, 0.06, { gain: g * 0.5 });
+        break;
+      case 'wood':
+        this.tone(140 + Math.random() * 30, t, 0.09, { gain: g * 0.9, type: 'triangle', filter: 900 });
+        this.noise(t, 0.06, { gain: g * 0.6, type: 'bandpass', freq: 900, q: 1.5 });
+        break;
+      case 'water':
+        this.noise(t, 0.28, { gain: g * 1.4, type: 'bandpass', freq: 900 + Math.random() * 500, freqEnd: 2600, q: 1.1, attack: 0.02 });
+        this.noise(t + 0.06, 0.2, { gain: g * 0.6, type: 'highpass', freq: 3000 });
+        break;
+      case 'metal':
+        this.tone(110 + Math.random() * 30, t, 0.22, { gain: g * 1.2, type: 'triangle', filter: 700 });
+        this.noise(t, 0.08, { gain: g * 0.7, type: 'bandpass', freq: 600, q: 3 });
+        break;
+      default:
+        this.noise(t, 0.09, { gain: g, freq: 420 + Math.random() * 180, attack: 0.004 });
+        this.tone(70 + Math.random() * 15, t, 0.08, { gain: g * 0.6 });
+    }
   }
 
   land() {
@@ -360,16 +444,23 @@ export class AudioEngine {
     this.tone(55, t, 0.14, { gain: 0.3 });
   }
 
-  entityStep(pos, heavy) {
+  entityStep(pos, heavy, type) {
     if (!this._ok()) return;
     const t = this.now, p = this._panner(pos, 2, 1.2);
-    this.noise(t, 0.12, { gain: heavy ? 0.45 : 0.22, freq: 260, dest: p });
-    this.tone(48, t, 0.12, { gain: heavy ? 0.4 : 0.2, dest: p });
+    if (type === 'crawler') { this.noise(t, 0.03, { gain: 0.25, type: 'bandpass', freq: 2200, q: 3, dest: p }); return; }
+    if (type === 'mannequin') { this.noise(t, 0.04, { gain: 0.4, type: 'bandpass', freq: 1500, q: 4, dest: p }); this.tone(320, t, 0.04, { gain: 0.1, type: 'square', filter: 1200, dest: p }); return; }
+    const b = type === 'brute' ? 1.8 : 1;
+    this.noise(t, 0.12, { gain: (heavy ? 0.45 : 0.22) * b, freq: 260 / b, dest: p });
+    this.tone(48 / Math.sqrt(b), t, 0.12 * b, { gain: (heavy ? 0.4 : 0.2) * b, dest: p });
   }
 
-  drawer(pos) {
+  drawer(pos, rusty) {
     if (!this._ok()) return;
     const t = this.now, p = this._panner(pos, 2, 1);
+    if (rusty) {
+      this.tone(900 + Math.random() * 300, t, 0.5, { gain: 0.05, type: 'sawtooth', freqEnd: 1400, attack: 0.05, filter: 3000, dest: p });
+      this.noise(t, 0.5, { gain: 0.14, type: 'bandpass', freq: 2200, freqEnd: 1100, q: 6, attack: 0.05, dest: p });
+    }
     this.noise(t, 0.3, { gain: 0.16, type: 'bandpass', freq: 1400, freqEnd: 700, q: 2.5, attack: 0.04, dest: p });
     this.noise(t + 0.3, 0.12, { gain: 0.25, freq: 500, dest: p });
     this.tone(180, t + 0.3, 0.1, { gain: 0.12, type: 'square', filter: 600, dest: p });
@@ -578,4 +669,151 @@ export class AudioEngine {
 
   uiHover() { if (this._ok()) this.tone(1200, this.now, 0.04, { gain: 0.02, dest: this.ui }); }
   uiClick() { if (this._ok()) { this.tone(700, this.now, 0.06, { gain: 0.05, dest: this.ui }); this.noise(this.now, 0.02, { gain: 0.05, type: 'highpass', freq: 3000, dest: this.ui }); } }
+
+  // ── overhaul SFX ─────────────────────────────────────────
+  monsterAttack(pos, voice) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 2, 1);
+    const low = voice === 'growl' ? 0.5 : voice === 'chitter' ? 2.2 : voice === 'hum' ? 1.6 : 1;
+    this.tone(300 * low, t, 0.35, { gain: 0.12, type: 'sawtooth', freqEnd: 140 * low, attack: 0.01, filter: 2200, dest: p });
+    this.noise(t, 0.3, { gain: 0.35, type: 'bandpass', freq: 900 * low, freqEnd: 400 * low, q: 1.5, dest: p });
+    this.noise(t + 0.15, 0.12, { gain: 0.3, type: 'bandpass', freq: 1600, freqEnd: 700, q: 1.2, attack: 0.03, dest: p });
+  }
+
+  hurt(heavy) {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, 0.2, { gain: heavy ? 0.7 : 0.5, freq: 320, attack: 0.002 });
+    this.tone(heavy ? 70 : 90, t, 0.25, { gain: 0.5, freqEnd: 40 });
+    this.tone(210 + Math.random() * 40, t + 0.03, 0.22, { gain: 0.08, type: 'sawtooth', freqEnd: 150, attack: 0.01, filter: 1400 });
+  }
+
+  heal() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, 0.5, { gain: 0.1, type: 'bandpass', freq: 3000, freqEnd: 1500, q: 1, attack: 0.1 });
+    [72, 76, 79].forEach((n, i) => this.tone(midi(n), t + 0.3 + i * 0.08, 0.6, { gain: 0.04, dest: this.ui }));
+  }
+
+  scratch(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 1.5, 1);
+    for (let i = 0; i < 4; i++) this.noise(t + i * 0.13, 0.11, { gain: 0.55, type: 'bandpass', freq: 2600 + i * 300, freqEnd: 900, q: 4, attack: 0.01, dest: p });
+    this.tone(160, t, 0.6, { gain: 0.2, type: 'triangle', freqEnd: 110, filter: 800, dest: p });
+  }
+
+  ventThump(sprint) {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.tone(85 + Math.random() * 25, t, 0.3, { gain: sprint ? 0.42 : 0.26, type: 'triangle', filter: 500 });
+    this.noise(t, 0.12, { gain: sprint ? 0.3 : 0.18, type: 'bandpass', freq: 700, q: 2.5 });
+  }
+
+  ventCreak(level) {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.tone(500 + Math.random() * 600, t, 0.6, { gain: 0.03 + level * 0.05, type: 'sawtooth', freqEnd: 300 + Math.random() * 500, attack: 0.1, filter: 1800 });
+    this.noise(t, 0.6, { gain: 0.08 + level * 0.1, type: 'bandpass', freq: 1200, freqEnd: 600, q: 8, attack: 0.1 });
+  }
+
+  ventBreak() {
+    if (!this._ok()) return;
+    const t = this.now;
+    for (let i = 0; i < 6; i++) this.tone(200 + Math.random() * 500, t + i * 0.06, 0.7, { gain: 0.12, type: 'triangle', freqEnd: 90, filter: 2500 });
+    this.noise(t, 1.0, { gain: 0.8, freq: 1800, freqEnd: 200 });
+    this.noise(t + 0.55, 0.5, { gain: 0.7, freq: 300 });
+    this.tone(40, t + 0.55, 0.5, { gain: 0.6 });
+  }
+
+  clank() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.tone(420 + Math.random() * 100, t, 0.18, { gain: 0.08, type: 'triangle', filter: 2000 });
+    this.noise(t, 0.05, { gain: 0.15, type: 'bandpass', freq: 1800, q: 3 });
+  }
+
+  grate() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, 0.25, { gain: 0.35, type: 'bandpass', freq: 1400, freqEnd: 600, q: 3 });
+    this.tone(260, t, 0.3, { gain: 0.14, type: 'triangle', freqEnd: 120, filter: 1500 });
+    this.noise(t + 0.4, 0.2, { gain: 0.45, freq: 400 });
+  }
+
+  splash(big) {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, big ? 0.9 : 0.4, { gain: big ? 0.8 : 0.45, type: 'bandpass', freq: 700, freqEnd: 2500, q: 0.8, attack: 0.01 });
+    this.noise(t + 0.1, big ? 1.2 : 0.5, { gain: 0.3, type: 'highpass', freq: 2500, attack: 0.05 });
+  }
+
+  craft() {
+    if (!this._ok()) return;
+    const t = this.now;
+    for (let i = 0; i < 4; i++) {
+      this.tone(320 + Math.random() * 120, t + i * 0.16, 0.12, { gain: 0.12, type: 'triangle', filter: 2500 });
+      this.noise(t + i * 0.16, 0.06, { gain: 0.3, type: 'bandpass', freq: 1500, q: 2 });
+    }
+    [67, 71, 74].forEach((n, i) => this.tone(midi(n), t + 0.7 + i * 0.07, 0.5, { gain: 0.05, dest: this.ui }));
+  }
+
+  chestOpen() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.noise(t, 0.4, { gain: 0.12, type: 'bandpass', freq: 600, freqEnd: 1200, q: 5, attack: 0.05 });
+    this.tone(160, t + 0.35, 0.15, { gain: 0.15, type: 'triangle', filter: 800 });
+  }
+
+  rattle(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 2, 1);
+    for (let i = 0; i < 7; i++) this.noise(t + i * 0.06, 0.04, { gain: 0.3, type: 'bandpass', freq: 1300 + Math.random() * 500, q: 3, dest: p });
+  }
+
+  noisemaker(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 3, 0.6);
+    for (let i = 0; i < 40; i++) {
+      this.tone(i % 2 ? 2300 : 2600, t + i * 0.1, 0.09, { gain: 0.12, type: 'square', filter: 5000, dest: p });
+    }
+  }
+
+  // positional music box near the Christmas tree
+  musicBox(pos) {
+    if (!this._ok()) return;
+    const t = this.now, p = this._panner(pos, 1.5, 1.4);
+    const notes = [76, 74, 72, 74, 76, 76, 76, 0, 74, 74, 74, 0, 76, 79, 79];
+    notes.forEach((n, i) => { if (n) this.tone(midi(n + 12), t + i * 0.36, 0.9, { gain: 0.05, type: 'sine', attack: 0.003, dest: p }); });
+    return notes.length * 0.36 + 1.5;
+  }
+
+  // gentle water lapping + drips (Poolrooms)
+  setWater(level) {
+    if (!this.ctx) return;
+    if (!this._water) {
+      const ctx = this.ctx;
+      const s = ctx.createBufferSource(); s.buffer = this.brownBuf; s.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = 0.6;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.18;
+      const lg = ctx.createGain(); lg.gain.value = 220;
+      lfo.connect(lg); lg.connect(f.frequency);
+      s.connect(f); f.connect(g); g.connect(this.sfx);
+      s.start(); lfo.start();
+      this._water = { g, next: 0 };
+    }
+    this._water.g.gain.setTargetAtTime(level * 0.25, this.ctx.currentTime, 0.6);
+    if (level > 0.05 && this.now > this._water.next) {
+      this._water.next = this.now + 0.8 + Math.random() * 2.5;
+      const t = this.now;
+      this.tone(900 + Math.random() * 900, t, 0.12, { gain: 0.03 * level, freqEnd: 1800 + Math.random() * 800, attack: 0.002 });
+    }
+  }
+
+  introHit() {
+    if (!this._ok()) return;
+    const t = this.now;
+    this.tone(55, t, 2.6, { gain: 0.25, attack: 0.02 });
+    for (const n of [43, 50, 55]) this.tone(midi(n), t, 3.2, { gain: 0.04, type: 'triangle', attack: 0.6, dest: this.ui });
+  }
 }

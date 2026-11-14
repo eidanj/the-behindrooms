@@ -44,7 +44,8 @@ export class TouchControls {
       <button class="t-btn small" id="t-sprint" aria-label="Sprint">${ICON.sprint}</button>
       <button class="t-btn small" id="t-light" aria-label="Flashlight">${ICON.flashlight}</button>
       <button class="t-btn small" id="t-batt" aria-label="Replace battery">${ICON.battery}</button>
-      <button class="t-btn small" id="t-drop" aria-label="Drop banana peel">${ICON.drop}</button>`;
+      <button class="t-btn small" id="t-drop" aria-label="Drop banana peel">${ICON.drop}</button>
+      <button class="t-btn small" id="t-crouch" aria-label="Crouch">${ICON.crouch}</button>`;
     const hud = document.getElementById('hud');
     hud.parentNode.insertBefore(root, hud.nextSibling);
     this.joy = root.querySelector('#t-joy');
@@ -68,7 +69,12 @@ export class TouchControls {
     };
     bind('#t-attack', () => I.press('KeyF'));
     bind('#t-use', () => I.click(0));
-    bind('#t-jump', () => I.press('Space'));
+    bind('#t-jump', () => { I.press('Space'); I.touchJumpHeld = true; });
+    const jumpUp = () => { I.touchJumpHeld = false; };
+    root.querySelector('#t-jump').addEventListener('pointerup', jumpUp);
+    root.querySelector('#t-jump').addEventListener('pointercancel', jumpUp);
+    this.crouchBtn = root.querySelector('#t-crouch');
+    bind('#t-crouch', () => { I.touchCrouch = !I.touchCrouch; });
     bind('#t-act', () => I.press('KeyE'));
     bind('#t-light', () => I.press('KeyL'));
     bind('#t-batt', () => I.press('KeyR'));
@@ -111,7 +117,10 @@ export class TouchControls {
     if (!on) this._reset();
   }
 
-  setReady(on) { this.actBtn.classList.toggle('ready', on); }
+  setReady(on) {
+    this.actBtn.classList.toggle('ready', on);
+    this.crouchBtn.classList.toggle('on', !!this.input.touchCrouch);
+  }
 
   _reset() {
     this.joyId = null;
@@ -120,6 +129,8 @@ export class TouchControls {
     this.input.moveY = 0;
     this.joy.classList.add('hidden');
     this.setSprint(false);
+    this.input.touchCrouch = false;
+    this.input.touchJumpHeld = false;
   }
 
   _down(e) {

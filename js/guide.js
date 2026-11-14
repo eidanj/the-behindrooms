@@ -131,7 +131,7 @@ export class Guide {
       while (want <= segStart + len && n < MAX_ARROWS) {
         const u = (want - segStart) / len;
         const s = 0.85 + 0.25 * Math.max(0, Math.sin(this.t * 5 - n * 0.55));
-        tmpP.set(a.x + dx * u, 0.03, a.z + dz * u);
+        tmpP.set(a.x + dx * u, this.game.world.floorAt(a.x + dx * u, a.z + dz * u) + 0.03, a.z + dz * u);
         tmpS.set(s, 1, s);
         tmpM.compose(tmpP, tmpQ, tmpS);
         this.arrows.setMatrixAt(n++, tmpM);

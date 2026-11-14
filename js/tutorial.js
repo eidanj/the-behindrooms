@@ -25,6 +25,10 @@ export class Tutorial {
       },
       { text: 'Press <kbd>Space</kbd> to <b>jump</b>.', check: () => this.ev.jump >= 1 },
       {
+        text: 'Hold <kbd>C</kbd> to <b>crouch</b>. While you\'re crouched, monsters <b>can\'t hear you</b>, even while you move.<br><br>You can only stay down for 10 seconds — then your legs need 20 seconds to recover.',
+        check: () => this.ev.crouch >= 1,
+      },
+      {
         text: 'Press <kbd>L</kbd> to switch your <b>flashlight</b> on, then press it again to switch it off.<br><br>Each battery lasts 5 minutes. Press <kbd>R</kbd> to swap in a spare.',
         check: () => this.ev.flash >= 2,
       },
@@ -45,19 +49,29 @@ export class Tutorial {
         check: () => this.ev.rock >= 1,
       },
       {
-        text: 'Grab the <b>banana peel</b>, press <kbd>5</kbd>, then <b>left-click</b> to throw it or <b>right-click</b> to drop it at your feet.<br><br>A chasing monster that steps on a peel <b>slips and falls</b>.',
+        text: 'Grab the <b>banana</b> with <kbd>E</kbd>, press <kbd>2</kbd> and <b>left-click</b> to eat it. You keep the <b>peel</b>.',
         setup: () => g.setMarker(10.4, 0.6, 13.6),
+        check: () => this.ev.ate >= 1,
+      },
+      {
+        text: 'Now press <kbd>5</kbd> to hold the <b>banana peel</b>, then <b>left-click</b> to throw it or <b>right-click</b> to drop it at your feet.<br><br>A chasing monster that steps on a peel <b>slips and falls</b>.',
+        setup: () => g.setMarker(null),
         check: () => this.ev.peel >= 1,
       },
       {
-        text: 'You can <b>fight back</b>. Press <kbd>F</kbd> to throw a punch, or just click anywhere.<br><br>Fists are weak. Drawers can hold a <b>lead pipe, crowbar, bat or fire axe</b>. They hit much harder but break. Every hit knocks a monster back; ones already knocked down take <b>double damage</b>.',
+        text: 'You can <b>fight back</b>. Press <kbd>F</kbd> to throw a punch, or just click anywhere. The little bar under the crosshair shows when you can hit again.<br><br>Fists are weak. Weapons from drawers (or the crafting table) hit much harder but break. Monsters already knocked down take <b>double damage</b>.',
         setup: () => g.setMarker(null),
         check: () => this.ev.attack >= 1,
       },
       {
-        text: 'Your stats are bottom-right.<br><b>Sanity</b> drains over time — faster at night and near monsters. At 0, you die.<br><b>Hunger</b> drains while you move. Below 35 you can\'t sprint.<br><b>Energy</b> drains while you move. Stand still to recover.',
+        text: 'Your <b>health</b> is above the hotbar. Monsters and long falls hurt you; it slowly comes back after a while (much faster at camp), and <b>bandages</b> heal you.<br><br>Bottom-right: <b>Sanity</b> drains over time (at 0 you die), <b>Hunger</b> drains while you move, <b>Energy</b> drains while you move — stand still to recover.',
         info: true,
-        setup: () => g.ui.glow('#hud-br'),
+        setup: () => g.ui.glow('#health, #hud-br'),
+      },
+      {
+        text: 'Drawers also hold <b>materials</b>: wood, metal, cloth and tape. Bring them to the <b>crafting table</b> by the fire to make weapons, bandages, batteries, keys and noisemakers.<br><br>The <b>chest</b> on the other side of the fire stores food and batteries — it keeps them even if you die.',
+        info: true,
+        setup: () => { g.ui.glow(null); g.setMarker(16.4, 1.3, 12.4); },
       },
       {
         text: 'You need <b>30 ★ Stars</b> to escape.<br>Earn one by <b>escaping a chase</b> (break line of sight and survive 20 s), <b>killing a monster</b>, or <b>squashing</b> one hiding in a saferoom bed.<br><br>Carried stars are <b>lost if you die</b>. Walk into camp to <b>bank</b> them.',
@@ -89,10 +103,15 @@ export class Tutorial {
         info: true,
       },
       {
-        text: '<b>Saferooms</b> are sealed rooms monsters can\'t enter. Unlock them with <b>keys</b> from drawers. Some have a <b>bed</b> to sleep through the night.<br><br>But at night, listen at the door. Breathing? A bulge under the blanket? <b>Don\'t sleep. Jump on it.</b>',
+        text: '<b>Saferooms</b> are sealed rooms monsters can\'t enter. Unlock them with <b>keys</b>. Some have a <b>bed</b> to sleep through the night.<br><br>But at night, listen at the door. Breathing? A bulge under the blanket? <b>Don\'t sleep. Jump on it.</b>',
         info: true,
       },
-      { text: 'That\'s everything. Good luck in there.', info: true, final: true },
+      {
+        text: 'Look up: there are <b>vents</b> above the ceiling. Climb a <b>ladder</b> (there\'s one at the back of camp) to crawl inside and hide — monsters can\'t see or hear you up there.<br><br>But crawling wears the vent out, and after 2 minutes it collapses. Find a grate and press <kbd>E</kbd> to drop out.',
+        info: true,
+        setup: () => g.setMarker(4.5, 2.4, 22.1),
+      },
+      { text: 'That\'s everything. Good luck in there.', info: true, final: true, setup: () => g.setMarker(null) },
     ];
   }
 

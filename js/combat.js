@@ -15,6 +15,7 @@ export class Combat {
   constructor(game) {
     this.game = game;
     this.cooldown = 0;
+    this.cdMax = 0.5;
     this.pending = null;
     this.targetT = 0;
     this.target = null;
@@ -36,9 +37,10 @@ export class Combat {
 
   attack() {
     const g = this.game, P = g.player;
-    if (P.dead || this.cooldown > 0 || g.hands.busy) return;
+    if (P.dead || this.cooldown > 0 || g.hands.busy || P.mode !== 'walk') return;
     const { def } = this.currentWeapon();
     this.cooldown = def.cd;
+    this.cdMax = def.cd;
     g.hands.play(def.fist ? 'punch' : 'swing');
     g.audio.swing(!def.fist);
     g.tutEvent('attack');
@@ -57,7 +59,8 @@ export class Combat {
       const d = Math.hypot(dx, dz);
       if (d > def.range + 0.35) continue;
       if (d > 0.7 && (dx * fx + dz * fz) / d < 0.72) continue; // must be roughly in front of you
-      if (!W.lineOfSight(cam.position.x, cam.position.y, cam.position.z, e.pos.x, 1.4, e.pos.z, 0.3)) continue;
+      if (Math.abs(e.y - P.feetY) > 1.6) continue;
+      if (!W.lineOfSight(cam.position.x, cam.position.y, cam.position.z, e.pos.x, e.y + e.def.head * 0.6, e.pos.z, 0.3)) continue;
       if (d < bd) { bd = d; best = e; }
     }
     if (!best) return; // whiff
@@ -67,7 +70,7 @@ export class Combat {
     // gore + sound
     const hx = best.pos.x - (best.pos.x - P.pos.x) / Math.max(bd, 0.01) * 0.25;
     const hz = best.pos.z - (best.pos.z - P.pos.z) / Math.max(bd, 0.01) * 0.25;
-    this.burst(hx, 1.45, hz, best.pos.x - P.pos.x, best.pos.z - P.pos.z, def.fist ? 8 : 14);
+    this.burst(hx, best.y + best.def.head * 0.62, hz, best.pos.x - P.pos.x, best.pos.z - P.pos.z, def.fist ? 8 : 14);
     A.hitFlesh(best.pos, !def.fist);
     g.landKick(def.fist ? 0.015 : 0.03);
     E.noise(P.pos.x, P.pos.z, 'fight');
@@ -99,7 +102,7 @@ export class Combat {
     for (let i = 0; i < n; i++) {
       if (this.parts.length >= MAX_P) this.parts.shift();
       this.parts.push({
-        x, y: y + (Math.random() - 0.5) * 0.3, z,
+        x, y: y + (Math.random() - 0.5) * 0.3, z, f: this.game.world.floorAt(x, z) + 0.02,
         vx: (dx / d) * (1 + Math.random() * 2.5) + (Math.random() - 0.5) * 1.6,
         vy: 0.5 + Math.random() * 2.2,
         vz: (dz / d) * (1 + Math.random() * 2.5) + (Math.random() - 0.5) * 1.6,
@@ -118,13 +121,13 @@ export class Combat {
       const p = this.parts[i];
       p.life -= dt;
       if (p.life <= 0) { this.parts.splice(i, 1); continue; }
-      if (p.y > 0.02) {
+      if (p.y > p.f) {
         p.vy -= 12 * dt;
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-        if (p.y <= 0.02) { p.y = 0.02; p.vx = p.vz = p.vy = 0; }
+        if (p.y <= p.f) { p.y = p.f; p.vx = p.vz = p.vy = 0; }
       }
       const s = p.s * Math.min(1, p.life * 2);
-      tmpM.makeScale(s, p.y <= 0.02 ? 0.2 : s, s);
+      tmpM.makeScale(s, p.y <= p.f ? 0.2 : s, s);
       tmpM.setPosition(tmpV.set(p.x, p.y, p.z));
       this.mesh.setMatrixAt(n++, tmpM);
     }
@@ -148,6 +151,7 @@ export class Combat {
     this.parts.length = 0;
     this.mesh.count = 0;
     this.cooldown = 0;
+    this.cdMax = 0.5;
     this.pending = null;
     this.targetT = 0;
     this.target = null;

@@ -1,8 +1,8 @@
-// Player: movement, head-bob, jumping, survival stats, flashlight and
-// held-item actions.
+// Player: movement (ledges, ladders, water, crouching, vent crawling),
+// head-bob, jumping, health + survival stats, flashlight and held-item actions.
 
 import * as THREE from '../lib/three.module.min.js';
-import { PLAYER, FLASHLIGHT, ENTITY } from './config.js';
+import { PLAYER, FLASHLIGHT, ENTITY, VENT } from './config.js';
 import { ITEMS, Inventory, SLOTS, WEAPONS } from './items.js';
 import { clamp } from './rng.js';
 
@@ -30,10 +30,12 @@ export class Player {
     this.sanity = 100;
     this.hunger = 100;
     this.energy = PLAYER.maxEnergy;
-    this.stars = keepInventory ? this.stars : 0;
+    this.health = PLAYER.maxHealth;
+    this.hurtT = 99;
     this.dead = false;
     this.flashlightOn = false;
     this.flashBright = 1;
+    this.flashCut = 0;
     if (!keepInventory) {
       this.inv = new Inventory();
       this.inv.counts.battery = FLASHLIGHT.startBatteries;
@@ -55,9 +57,21 @@ export class Player {
     this.restT = 0;
     this.landKick = 0;
     this.airTime = 0;
+    this.fallFrom = spawn.y;
+    this.crouching = false;
+    this.crouchMeter = 1;
+    this.crouchLock = false;
+    this.mode = 'walk';       // walk | vent | anim
+    this.vent = null;
+    this.ventT = 0;
+    this.wading = false;
+    this.onLadder = false;
+    this.starveT = 0;
   }
 
   get feetY() { return this.pos.y; }
+  get eyeY() { return this.pos.y + this.eye; }
+  get inVent() { return this.mode === 'vent'; }
 
   speedMult() {
     let m = 1 + this.cookieBonus;
@@ -73,76 +87,155 @@ export class Player {
     return out.set(-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp);
   }
 
-  update(dt, input, ctx) {
-    const g = this.game, W = g.world, S = g.settings;
-    if (this.dead) return;
+  // amount of damage, the thing that caused it (for the death screen)
+  damage(amount, cause, from) {
+    const g = this.game;
+    if (this.dead || amount <= 0) return;
+    this.health -= amount;
+    this.hurtT = 0;
+    g.onPlayerHurt(amount, from);
+    if (this.health <= 0) { this.health = 0; g.die(cause, from && from.def ? { entity: from } : {}); }
+  }
 
-    // ── look ──
+  heal(n) { this.health = Math.min(PLAYER.maxHealth, this.health + n); }
+
+  _look(input) {
+    const S = this.game.settings;
     const sens = 0.0022 * S.sensitivity;
     this.yaw -= input.dx * sens;
     this.pitch -= input.dy * sens * (S.invertY ? -1 : 1);
     this.pitch = clamp(this.pitch, -1.5, 1.5);
-    if (input.dx || input.dy) g.tutEvent('look', Math.abs(input.dx) + Math.abs(input.dy));
+    if (input.dx || input.dy) this.game.tutEvent('look', Math.abs(input.dx) + Math.abs(input.dy));
+  }
 
-    // ── move ──
+  _moveInput(input) {
     let f = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0) - (input.down('KeyS') || input.down('ArrowDown') ? 1 : 0);
     let r = (input.down('KeyD') || input.down('ArrowRight') ? 1 : 0) - (input.down('KeyA') || input.down('ArrowLeft') ? 1 : 0);
-    if (input.moveX || input.moveY) { f = -input.moveY; r = input.moveX; } // touch thumbstick (analog)
+    if (input.moveX || input.moveY) { f = -input.moveY; r = input.moveX; }
     const len = Math.hypot(f, r);
     if (len > 1) { f /= len; r /= len; }
+    return { f, r, len: Math.min(1, len) };
+  }
+
+  update(dt, input, ctx) {
+    const g = this.game, W = g.world;
+    if (this.dead) return;
+    this.hurtT += dt;
+    if (this.flashCut > 0) this.flashCut -= dt;
+    if (this.mode === 'anim') { this._stats(dt, ctx); return; }
+    this._look(input);
+    if (this.mode === 'vent') { this._updateVent(dt, input, ctx); this._stats(dt, ctx); this._actions(dt, input, ctx); return; }
+
+    const { f, r, len } = this._moveInput(input);
+
+    // ── crouch (hold C, or press C if "toggle crouch" is on) ──
+    const S = g.settings;
+    let wantCrouch = S.crouchToggle ? this._crouchToggled : input.down('KeyC');
+    if (input.pressed('KeyC') && S.crouchToggle) wantCrouch = this._crouchToggled = !this._crouchToggled;
+    if (input.touchCrouch !== undefined) wantCrouch = wantCrouch || input.touchCrouch;
+    if (this.crouchLock) { wantCrouch = false; if (input.touchCrouch) input.touchCrouch = false; }
+    if (wantCrouch && !this.crouching && this.crouchMeter > 0.05) { this.crouching = true; g.tutEvent('crouch'); }
+    else if (!wantCrouch && this.crouching) this.crouching = false;
+    if (this.crouching) {
+      this.crouchMeter -= dt / PLAYER.crouchMax;
+      if (this.crouchMeter <= 0) {
+        this.crouchMeter = 0; this.crouching = false; this.crouchLock = true; this._crouchToggled = false;
+        g.toast("Your legs give out — you can't crouch for a while", 'bad');
+      }
+    } else {
+      this.crouchMeter = Math.min(1, this.crouchMeter + dt / PLAYER.crouchRecharge);
+      if (this.crouchLock && this.crouchMeter >= 1) { this.crouchLock = false; g.toast('You can crouch again'); }
+    }
+    const eyeT = this.crouching ? PLAYER.crouchEye : PLAYER.eyeHeight;
+    this.eye += (eyeT - this.eye) * Math.min(1, dt * 9);
+
+    // ── move ──
     const wantSprint = input.down('ShiftLeft') || input.down('ShiftRight');
-    const canSprint = this.hunger >= PLAYER.sprintHungerMin && this.energy > 0 && f > 0.1;
-    if (wantSprint && !canSprint && len > 0 && !this._sprintWarned) {
+    const canSprint = this.hunger >= PLAYER.sprintHungerMin && this.energy > 0 && f > 0.1 && !this.crouching;
+    if (wantSprint && !canSprint && len > 0 && !this._sprintWarned && !this.crouching) {
       this._sprintWarned = true;
-      g.toast(this.hunger < PLAYER.sprintHungerMin ? "Too hungry to sprint — eat something" : "Too exhausted to sprint — rest or drink something", 'bad');
+      g.toast(this.hunger < PLAYER.sprintHungerMin ? 'Too hungry to sprint — eat something' : 'Too exhausted to sprint — rest or drink something', 'bad');
       setTimeout(() => (this._sprintWarned = false), 6000);
     }
     this.sprinting = wantSprint && canSprint && len > 0;
+    const water = W.waterAt(this.pos.x, this.pos.z);
+    this.wading = !Number.isNaN(water) && water > this.pos.y + 0.05;
     let speed = PLAYER.walkSpeed * this.speedMult();
     if (this.sprinting) speed *= PLAYER.sprintMult;
+    if (this.crouching) speed *= PLAYER.crouchMult;
+    if (this.wading) speed *= PLAYER.waterSpeed;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const tx = (-sy * f + cy * r) * speed, tz = (-cy * f - sy * r) * speed;
-    const accel = this.onGround ? 14 : 3;
+    const accel = this.onGround || this.onLadder ? 14 : 3;
     this.vel.x += (tx - this.vel.x) * Math.min(1, dt * accel);
     this.vel.z += (tz - this.vel.z) * Math.min(1, dt * accel);
     const ox = this.pos.x, oz = this.pos.z;
-    this.pos.x += this.vel.x * dt;
-    this.pos.z += this.vel.z * dt;
-    W.collide(this.pos, PLAYER.radius, this.pos.y, PLAYER.stepHeight);
-    if (!W.roomAt(this.pos.x, this.pos.z)) { this.pos.x = ox; this.pos.z = oz; }
+    const step = PLAYER.stepHeight;
+    const R = PLAYER.radius;
+    // ledges: try the full move, then each axis alone (so you slide along edges)
+    let nx = ox + this.vel.x * dt, nz = oz + this.vel.z * dt;
+    if (W.terrainBlocked(nx, nz, R, this.pos.y, step)) {
+      if (!W.terrainBlocked(nx, oz, R, this.pos.y, step)) nz = oz;
+      else if (!W.terrainBlocked(ox, nz, R, this.pos.y, step)) nx = ox;
+      else { nx = ox; nz = oz; }
+    }
+    this.pos.x = nx; this.pos.z = nz;
+    W.collide(this.pos, R, this.pos.y, step);
+    if (!W.roomAt(this.pos.x, this.pos.z) || W.terrainBlocked(this.pos.x, this.pos.z, R * 0.8, this.pos.y, step + 0.05)) { this.pos.x = ox; this.pos.z = oz; }
     const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
     const hs = dt > 0 ? moved / dt : 0;
-    this.moving = hs > 0.5 && len > 0;
+    this.moving = hs > 0.4 && len > 0;
     if (this.moving) g.tutEvent('walk', moved);
     if (this.sprinting && this.moving) g.tutEvent('sprint', dt);
 
+    // ── ladders (pits + pools): push into the ladder or hold Space to climb ──
+    const lad = W.ladderAt(this.pos.x, this.pos.z, this.pos.y);
+    this.onLadder = false;
+    if (lad) {
+      const into = (tx * lad.nx + tz * lad.nz) / Math.max(0.01, speed);
+      if (into > 0.3 || input.down('Space') || input.touchJumpHeld) {
+        this.vy = 2.6;
+        this.onGround = false;
+        this.onLadder = true;
+        this.fallFrom = this.pos.y;
+        if ((this._climbT = (this._climbT || 0) + dt) > 0.32) { this._climbT = 0; g.audio.clank(); }
+      } else if (this.vy < -1.2) this.vy = -1.2;
+    }
+
     // ── jump / gravity ──
-    if (input.pressed('Space') && this.onGround) {
-      this.vy = PLAYER.jumpVelocity;
+    if (input.pressed('Space') && this.onGround && !this.crouching) {
+      this.vy = PLAYER.jumpVelocity * (this.wading ? 0.6 : 1);
       this.onGround = false;
+      this.fallFrom = this.pos.y;
       g.tutEvent('jump');
     }
-    this.vy -= PLAYER.gravity * dt;
+    if (!this.onLadder) this.vy -= PLAYER.gravity * dt;
     this.pos.y += this.vy * dt;
-    const ground = W.groundAt(this.pos.x, this.pos.z, PLAYER.radius, this.pos.y);
+    const ground = W.groundAt(this.pos.x, this.pos.z, R, this.pos.y);
     if (this.pos.y <= ground) {
       if (!this.onGround) {
         const sp = -this.vy;
+        const drop = Math.max(this.fallFrom, this.pos.y) - ground;
         this.pos.y = ground;
         this.vy = 0;
         this.onGround = true;
-        if (sp > 2.5) { this.landKick = Math.min(0.08, sp * 0.012); g.onPlayerLand(sp, ground); }
-      } else { this.pos.y = ground; this.vy = 0; }
+        this.fallFrom = ground;
+        if (sp > 2.5) { this.landKick = Math.min(0.1, sp * 0.012); g.onPlayerLand(sp, ground, drop, this.wading || !Number.isNaN(W.waterAt(this.pos.x, this.pos.z))); }
+      } else { this.pos.y = ground; this.vy = 0; this.fallFrom = ground; }
     } else if (this.onGround && this.pos.y - ground < 0.33 && this.vy <= 0) {
-      this.pos.y = ground; this.vy = 0;
-    } else this.onGround = false;
+      this.pos.y = ground; this.vy = 0; this.fallFrom = ground;
+    } else {
+      if (this.onGround) this.fallFrom = this.pos.y;
+      this.onGround = false;
+      this.fallFrom = Math.max(this.fallFrom, this.pos.y);
+    }
     this.landKick *= Math.max(0, 1 - dt * 8);
 
     // ── head bob ──
-    const bobTarget = this.moving && this.onGround ? (this.sprinting ? 1.5 : 1) : 0;
+    const bobTarget = this.moving && this.onGround ? (this.sprinting ? 1.5 : this.crouching ? 0.6 : 1) : 0;
     this.bobAmt += (bobTarget - this.bobAmt) * Math.min(1, dt * 6);
     if (this.moving && this.onGround) {
-      const sps = (this.sprinting ? 2.55 : 1.85) * Math.min(1.25, Math.max(0.7, this.speedMult()));
+      const sps = (this.sprinting ? 2.55 : this.crouching ? 1.3 : 1.85) * Math.min(1.25, Math.max(0.7, this.speedMult()));
       const prev = this.bobPhase;
       this.bobPhase += dt * sps * Math.PI;
       if (Math.floor(prev / Math.PI) !== Math.floor(this.bobPhase / Math.PI)) this._footstep();
@@ -154,8 +247,61 @@ export class Player {
 
   _footstep() {
     const g = this.game;
-    g.audio.footstep(this.sprinting);
-    g.entities.noise(this.pos.x, this.pos.z, this.sprinting ? 'sprint' : 'walk');
+    const surf = g.world.surfaceAt(this.pos.x, this.pos.z);
+    g.audio.footstep(this.sprinting, this.wading ? 'water' : surf, this.crouching);
+    // crouching = silent: monsters can't hear you
+    if (this.crouching) return;
+    g.entities.noise(this.pos.x, this.pos.z, this.sprinting || this.wading ? 'sprint' : 'walk');
+  }
+
+  // ── vents ─────────────────────────────────────────────────
+  enterVent(vent, x, z) {
+    this.mode = 'vent';
+    this.vent = vent;
+    this.ventT = 0;
+    this.crouching = false;
+    this.pos.set(x, VENT.floorY, z);
+    this.vel.set(0, 0, 0);
+    this.vy = 0;
+    this.eye = 0.42;
+    this.onGround = true;
+  }
+
+  _updateVent(dt, input, ctx) {
+    const g = this.game, W = g.world, V = this.vent;
+    const { f, r, len } = this._moveInput(input);
+    const sprint = (input.down('ShiftLeft') || input.down('ShiftRight')) && f > 0.1;
+    const speed = (sprint ? VENT.crawlSprint : VENT.crawlSpeed) * (len > 0 ? 1 : 0);
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    const tx = (-sy * f + cy * r) * speed, tz = (-cy * f - sy * r) * speed;
+    this.vel.x += (tx - this.vel.x) * Math.min(1, dt * 10);
+    this.vel.z += (tz - this.vel.z) * Math.min(1, dt * 10);
+    const ox = this.pos.x, oz = this.pos.z;
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.z * dt;
+    W.collide(this.pos, 0.3, VENT.floorY, 0.1, true, 0.8);
+    if (!W.ventAt(this.pos.x, this.pos.z)) { this.pos.x = ox; this.pos.z = oz; }
+    this.pos.y = VENT.floorY;
+    const moved = Math.hypot(this.pos.x - ox, this.pos.z - oz);
+    this.moving = moved / Math.max(dt, 1e-4) > 0.3;
+    this.sprinting = sprint && this.moving;
+    this.eye += (0.42 - this.eye) * Math.min(1, dt * 8);
+    // durability: drops while crawling (faster when hurrying), slowly recovers when still
+    const st = V.st;
+    if (this.moving) st.dur -= dt * (this.sprinting ? VENT.drainSprint : VENT.drainMove);
+    else st.dur = Math.min(VENT.durability, st.dur + dt * VENT.regen);
+    this.ventT += dt;
+    if (this.moving) {
+      const prev = this.bobPhase;
+      this.bobPhase += dt * (this.sprinting ? 2.4 : 1.6) * Math.PI;
+      if (Math.floor(prev / Math.PI) !== Math.floor(this.bobPhase / Math.PI)) {
+        g.audio.ventThump(this.sprinting);
+        if (this.sprinting) g.entities.noise(this.pos.x, this.pos.z, 'peel');
+        if (st.dur < 45 && Math.random() < 0.3) g.audio.ventCreak(1 - st.dur / 45);
+      }
+    }
+    this.bobAmt += ((this.moving ? 1 : 0) - this.bobAmt) * Math.min(1, dt * 6);
+    if (st.dur <= 0 || this.ventT >= VENT.maxTime) g.ventCollapse(st.dur <= 0 ? 'worn' : 'time');
   }
 
   _stats(dt, ctx) {
@@ -186,6 +332,15 @@ export class Player {
     this.sanity = clamp(this.sanity + (regen - drain) * dt, 0, 100);
     if (this.sanity <= 0 && !ctx.tutorial) { g.die('Insanity'); return; }
 
+    // health: slowly regenerates a while after you were last hurt (faster at camp)
+    if (this.hurtT > PLAYER.regenDelay && this.health < PLAYER.maxHealth && this.hunger > 0) {
+      this.heal(dt * PLAYER.regenRate * (this.inCamp ? 6 : 1));
+    }
+    if (this.hunger <= 0 && !ctx.tutorial) {
+      this.starveT += dt;
+      if (this.starveT > 4) { this.starveT = 0; this.damage(1, 'Starvation'); }
+    } else this.starveT = 0;
+
     if (this.boost) {
       this.boost.t -= dt;
       if (this.boost.t <= 0) {
@@ -214,8 +369,7 @@ export class Player {
       if (input.pressed('Digit' + (i + 1)) || input.pressed('Numpad' + (i + 1))) this.select(i);
     }
     if (input.wheel) this.select((this.inv.slot + Math.sign(input.wheel) + NS) % NS);
-    // F (or a tap anywhere on touch screens) = quick melee
-    if (input.pressed('KeyF')) this.melee();
+    if (input.pressed('KeyF') && this.mode === 'walk') this.melee();
     if (input.pressed('KeyL')) this.toggleFlashlight();
     if (input.pressed('KeyR')) this.replaceBattery();
     if (input.pressed('KeyE')) g.interact();
@@ -256,9 +410,9 @@ export class Player {
     g.toast(`Fresh battery in · ${this.inv.counts.battery} spare`, 'good');
   }
 
-  // Switch to fists / the equipped weapon (instantly, so the swing is visible) and attack.
   melee() {
     const g = this.game;
+    if (this.mode !== 'walk') return;
     const mi = SLOTS.indexOf('melee');
     if (this.inv.slot !== mi) {
       if (g.hands.busy || g.combat.cooldown > 0) return;
@@ -268,21 +422,31 @@ export class Player {
     g.combat.attack();
   }
 
-  // Left click: eat / drink / throw what you're holding; otherwise punch.
+  // Left click: use what you're holding. The flashlight toggles, food/drink/meds
+  // are used, rocks/peels/noisemakers are thrown; otherwise punch.
   useHeld() {
     const g = this.game;
     if (this.cooldown > 0 || g.hands.busy) return;
     const held = this.inv.held();
+    if (held === 'flashlight') { this.toggleFlashlight(); this.cooldown = 0.2; return; }
     const d = held && ITEMS[held];
-    const usable = d && (d.cat === 'food' || d.cat === 'drink' || held === 'rock' || held === 'banana');
-    if (!usable) { this.melee(); return; }
-    if (d.cat === 'food' || d.cat === 'drink') {
+    const throwable = held === 'rock' || held === 'banana' || held === 'noisemaker';
+    const usable = d && (d.cat === 'food' || d.cat === 'drink' || d.cat === 'med' || throwable);
+    if (!usable) { if (this.mode === 'walk') this.melee(); return; }
+    if (d.cat === 'med') {
+      if (this.health >= PLAYER.maxHealth - 0.5) { g.toast('You are not hurt'); return; }
+      g.hands.play('eat');
+      this.cooldown = 1.2;
+      g.audio.heal();
+      this.pending = { t: 0.8, fn: () => { if (!this.inv.take(held)) return; this.heal(d.heal); g.toast(`${d.name}: +${d.heal} Health`, 'good'); } };
+    } else if (d.cat === 'food' || d.cat === 'drink') {
       g.hands.play(d.cat === 'food' ? 'eat' : 'drink');
       this.cooldown = 1.05;
       this.pending = { t: 0.5, fn: () => this.consume(held) };
       if (d.cat === 'food') g.audio.eat(); else g.audio.drink();
-      g.entities.noise(this.pos.x, this.pos.z, 'peel');
-    } else if (held === 'rock' || held === 'banana') {
+      g.entities.noise(this.pos.x, this.pos.z, 'eat');
+    } else if (throwable) {
+      if (this.mode === 'vent') { g.toast('No room to throw in here'); return; }
       g.hands.play('throw');
       this.cooldown = 0.6;
       this.pending = {
@@ -295,7 +459,7 @@ export class Player {
           origin.y -= 0.12;
           g.throwables.throw(held, origin, dir);
           g.audio.whoosh();
-          g.tutEvent(held === 'rock' ? 'rock' : 'peel');
+          g.tutEvent(held === 'banana' ? 'peel' : 'rock');
         },
       };
     }
@@ -303,7 +467,7 @@ export class Player {
 
   altUse() {
     const g = this.game;
-    if (this.cooldown > 0) return;
+    if (this.cooldown > 0 || this.mode !== 'walk') return;
     if (this.inv.held() === 'banana') {
       if (!this.inv.take('banana')) return;
       g.hands.play('use');
@@ -329,7 +493,8 @@ export class Player {
       else msg += ' (speed bonus maxed)';
     }
     if (d.boost) { this.boost = { ...d.boost, t: d.boost.dur, item }; this.crash = null; msg += `, +${Math.round(d.boost.mult * 100)}% speed for ${d.boost.dur}s`; }
+    if (d.peel) { this.inv.add('banana'); msg += ' · kept the peel (slot 5)'; }
     g.toast(msg, 'good');
-    g.tutEvent('ate');
+    g.tutEvent('ate', item);
   }
 }
